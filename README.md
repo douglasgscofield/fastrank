@@ -41,7 +41,7 @@ Unit: microseconds
  rank_new(yy)  3.755  4.300  4.789952  4.542  4.7290  6784.741 1e+05
 ~~~~
 
-For 1000-value vectors the speedup is more modest, about 2&times, and for
+For 1000-value vectors the speedup is more modest, about 2&times;, and for
 10,000-value vectors the speedup is only in the neighbourhood of 20-30%:
 
 ~~~~
@@ -81,16 +81,23 @@ Still working this part out.  The alternatives I am considering are:
 1. Copy the internal R function `do_rank` within `src/main/sort.c` that is what
    we reach when doing the `.Internal(rank(...))` call.  This is the simplest, but
    has the same advantages and disadvantages as the benchmarks above.  It would of
-   course be as flexible as the internal function and functionally identical.
+   course be as flexible as the internal function and functionally identical.  I
+   would also need to include R-core as package authors following
+   http://r-pkgs.had.co.nz/check.html.  I am leaning toward this option.
 2. Write my own C function that is callable from R directly.  I can try to make
    it faster than `.Internal(rank(...))`, perhaps by choosing between quicksort
    and mergesort following http://rosettacode.org/wiki/Sorting_algorithms/Quicksort.
+   I am leaning toward only following this if it can be a real improvement on
+   what is already provided.
 3. Write my own C++ function using the `Rcpp` package, which likely makes
    working with the interface much easier.  I see that as a drawback, but I may be
    able to make the package easier to write and maintain with templates, and also
    would be able to apply the same sort-choice speedups as for (2).
 
 
+TO DO
+-----
 
-
+* real package environment
 * use Authors@R
+
