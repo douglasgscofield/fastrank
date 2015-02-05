@@ -94,6 +94,12 @@ Still working this part out.  The alternatives I am considering are:
    able to make the package easier to write and maintain with templates, and also
    would be able to apply the same sort-choice speedups as for (2).
 
+Notes:
+
+* http://stat.ethz.ch/R-manual/R-devel/library/base/html/sort.html
+* http://stat.ethz.ch/R-manual/R-devel/library/base/html/xtfrm.html.
+* https://stat.ethz.ch/R-manual/R-devel/library/base/html/order.html
+
 
 TO DO
 -----
