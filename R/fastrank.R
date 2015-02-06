@@ -104,6 +104,7 @@
 #'
 #' * real package environment
 #' * use Authors@R
+#' * Dependent on R >= 3.0.0, so I only worry about long vectors
 #'
 #' @references
 #'
@@ -125,11 +126,15 @@ NULL
 #' An R function providing fast ranking for integer and numeric vectors, as an
 #' alternative to calling .Internal(rank(...)), which packages cannot do.
 #'
+#' There is still a bit of overhead in calling this method.  If you really want
+#' the fastest interface, then call the C function directly.
+#'
 #' @note The vector must not include NAs or NaNs.  This is **not** checked.
 #'
 #' @param x            A vector of values to rank.
 #' @param ties.method  Method for resolving rank ties in \code{x}.  Provides
-#'                     all available in \code{rank}.
+#'                     all available in \code{rank}.  This does **not** provide
+#'                     method \code{"random"}.
 #'
 #' @return An integert vector of ranks of values in \code{x}, with length
 #'         the same as \code{length(x)}.
@@ -145,8 +150,9 @@ NULL
 #' @export
 #'
 #' @name fastrank
-fastrank <- function(x, ties.method = c("average", "first", "random", "max", 
-                                        "min")) {
+fastrank <- function(x, ties.method = c("average", "first", "max", "min")) {
+    if (! is.vector(x) || is.na(length(x)))
+        stop(deparse(substitute(x)), " must be a non-empty vector")
     ties.method <- match.arg(ties.method)
     if (is.integer(x)) {
         r <- .Call("fastrank_int", x, length(x), ties.method)
