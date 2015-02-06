@@ -1,0 +1,10 @@
+Package: fastrank
+Type: Package
+Title: Ranking Vectors with Low Overhead
+Version: 0.1
+Author: Douglas G. Scofield
+Maintainer: Douglas G. Scofield <douglasgscofield@gmail.com>
+Description: Provides a rank function with little overhead as alternatives to calling .Internal(rank(...)) which is forbidden within packages.  This function avoids much of the overhead within the R source for rank, this in turn imposes constraints on the user.
+ByteCompile: no
+URL: https://github.com/douglasgscofield/fastrank
+License: GPL-2
