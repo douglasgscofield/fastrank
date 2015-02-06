@@ -1,6 +1,28 @@
 #include <R.h>
 #include <Rinternals.h>
 
+//' Quickly calculate ranks of an integer vector.
+//'
+//' This function quickly calculates the ranks of an integer vector, and does 
+//' absolutely no error checking on its arguments.  If you call it incorrectly,
+//' it will probably crash R.
+//' 
+//' @param x            a vector of integers, there must be no NA values.
+//' @param n            the length of \code{x}, this must be correct.
+//' @param ties_method  character string specifying the method for breaking
+//'                     ties in ranks.  This must match one of the following
+//'                     exactly: average, first, max, min.  For more 
+//'                     information on the differences between these methods
+//'                     see \code{\link{rank}}.  Note that the random method
+//'                     is not provided by this function.
+//' 
+//' @return a vector the same length as \code{x} with integer ranks of the 
+//'         corresponding elements in \code{x}.
+//'
+//' @seealso \code{\link{fastrank}}
+//' 
+//' @export
+
 SEXP fastrank_int(SEXP x, SEXP n, SEXP ties_method) {
     // x is an integer vector, convert to...
     // n is length of x, convert to...

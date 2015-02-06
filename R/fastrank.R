@@ -115,6 +115,8 @@
 #'
 #' @docType package
 #'
+#' @useDynLib fastrank
+#'
 #' @name fastrank-package
 #'
 NULL
@@ -151,7 +153,7 @@ NULL
 #'
 #' @name fastrank
 fastrank <- function(x, ties.method = c("average", "first", "max", "min")) {
-    if (! is.vector(x) || is.na(length(x)))
+    if (! is.vector(x) || ! length(x))
         stop(deparse(substitute(x)), " must be a non-empty vector")
     ties.method <- match.arg(ties.method)
     if (is.integer(x)) {

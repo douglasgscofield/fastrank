@@ -83,12 +83,12 @@ Still working this part out.  The alternatives I am considering are:
    has the same advantages and disadvantages as the benchmarks above.  It would of
    course be as flexible as the internal function and functionally identical.  I
    would also need to include R-core as package authors following
-   http://r-pkgs.had.co.nz/check.html.  I am leaning toward this option.
+   http://r-pkgs.had.co.nz/check.html.  I am now not leaning toward this, because I
+   would have to copy `orderVector1()` along with sort, order etc.
 2. Write my own C function that is callable from R directly.  I can try to make
    it faster than `.Internal(rank(...))`, perhaps by choosing between quicksort
    and mergesort following http://rosettacode.org/wiki/Sorting_algorithms/Quicksort.
-   I am leaning toward only following this if it can be a real improvement on
-   what is already provided.
+   I am leaning toward this option.
 3. Write my own C++ function using the `Rcpp` package, which likely makes
    working with the interface much easier.  I see that as a drawback, but I may be
    able to make the package easier to write and maintain with templates, and also

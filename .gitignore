@@ -1,0 +1,29 @@
+# Mac OS X files
+.DS_Store
+._*
+
+# Example code in package build process
+*-Ex.R
+
+# R data files from past sessions
+.RData
+.Rdata
+.Rhistory
+
+# RStudio files
+.Rproj.user
+*.Rproj
+
+# directory used by the Makefile for R CMD check
+check_tmp
+
+# we build our documentation using Roxygen2, but we need to push
+# these as they are required for install_github (right???)
+# *.Rd
+inst/doc
+
+#Rcpp files
+src/*.o
+src/*.so
+src/*.dll
+
