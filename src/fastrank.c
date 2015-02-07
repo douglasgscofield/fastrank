@@ -21,9 +21,13 @@
 //'
 //' @seealso \code{\link{fastrank}}
 //' 
+//' @keywords internal
+//' 
 //' @export
 
-SEXP fastrank_int(SEXP x, SEXP n, SEXP ties_method) {
+// Note: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
+
+SEXP fastrank(SEXP x, SEXP n, SEXP ties_method) {
     // x is an integer vector, convert to...
     // n is length of x, convert to...
     // ties_method, convert to C string for use with strmp()

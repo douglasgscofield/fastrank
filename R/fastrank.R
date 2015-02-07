@@ -147,21 +147,12 @@ NULL
 #' @references
 #' \url{https://github.com/douglasgscofield/fastrank}
 #'
-# @keywords 
+#' @keywords internal
 #'
 #' @export
 #'
 #' @name fastrank
-fastrank <- function(x, ties.method = c("average", "first", "max", "min")) {
-    if (! is.vector(x) || ! length(x))
-        stop(deparse(substitute(x)), " must be a non-empty vector")
-    ties.method <- match.arg(ties.method)
-    if (is.integer(x)) {
-        r <- .Call("fastrank_int", x, length(x), ties.method)
-    } else if (is.numeric(x)) {
-        r <- .Call("fastrank_num", x, length(x), ties.method)
-    } else {
-        stop(deparse(substitute(x)), " must be integer or numeric")
-    }
+fastrank_ave <- function(x) {
+    .Call("fastrank_ave", x, length(x))
 }
 
