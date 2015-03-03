@@ -76,11 +76,10 @@ Unit: microseconds
 The plan
 --------
 
-This is less urgent now because I found that R already provides an interface to
-`orderVector` through user C code via [`R_orderVector`][R_orderVector].  I can
-build on this to provide my own local C function in `nestedRanksTest` to do the
-ranking.  PLUS because this ranks an `SEXP`, it is as general as the base
-`rank`.
+R already provides an interface to `orderVector` through user C code via
+[`R_orderVector`][R_orderVector].  I may be able to build on this to provide
+the functions here.  One big advantage is that it ranks an `SEXP`, it is as
+general as the base `rank`.
 
 [R_orderVector]: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
 

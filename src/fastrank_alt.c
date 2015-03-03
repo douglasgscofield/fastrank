@@ -28,6 +28,9 @@
 // Note: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
 //
 // void R_orderVector (int* indx, int n, SEXP arglist, Rboolean nalast, Rboolean decreasing)
+//
+// From 3.0.0, vectors may not reliably be int, so use R_xlen_t for the length type and
+// xlength() to get a vector length, hence R_xlen_t n = xlength(x)
 
 SEXP rank_(SEXP arg_x, SEXP arg_n) {
     int n = asInteger(arg_n);
