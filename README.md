@@ -73,6 +73,7 @@ Unit: microseconds
 ~~~~
 
 
+
 The plan
 --------
 
@@ -108,6 +109,14 @@ Notes:
 * http://stat.ethz.ch/R-manual/R-devel/library/base/html/sort.html
 * http://stat.ethz.ch/R-manual/R-devel/library/base/html/xtfrm.html.
 * https://stat.ethz.ch/R-manual/R-devel/library/base/html/order.html
+
+
+
+The API
+-------
+
+* Should I provide separate entrypoints for `fastrank_average`, `fastrank_minimum`, etc., to avoid the `strcmp()`, even though that will be very fast?  Benchmark the solutions.
+
 
 
 TO DO
