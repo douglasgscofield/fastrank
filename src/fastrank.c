@@ -16,7 +16,7 @@
 //'                     see \code{\link{rank}}.  Note that the random method
 //'                     is not provided by this function.
 //' 
-//' @return a vector the same length as \code{x} with integer ranks of the 
+//' @return a vector the same length as \code{x} with numeric ranks of the 
 //'         corresponding elements in \code{x}.
 //'
 //' @seealso \code{\link{fastrank}}
