@@ -78,7 +78,11 @@ Current results
 
 Well my initial implementation is complete and the first results are in.
 Bummer, it is not yet faster than calling `.Internal(rank(...))` but I feel it
-really must be.
+really must be.  Some observations:
+
+* It seems in relative terms that `fastrank` is faster than `.Internal(rank())` (or at least slows down less) when there are ties in the data, see contrast between results with `xx` which can have ties, and `yy` which essentially cannot.
+* Note the error by failing to make `xx` be numeric
+* Note the error for `fastrank_numeric_average` not being available, can I make the C interface directly available?
 
 ~~~~
 > library(microbenchmark)
