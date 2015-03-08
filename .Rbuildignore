@@ -1,0 +1,13 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^testing-strategy\.txt$
+^\.git$
+^\.gitignore$
+^Makefile$
+^check_tmp$
+^example_plot.png$
+^sedgwick_landscape_fewtrees.jpg$
+^NEWS.md$
+^TODO.md$
+^test$
+^test\..$

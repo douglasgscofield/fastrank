@@ -26,57 +26,83 @@
 // xlength() to get a vector length, hence R_xlen_t n = xlength(x)
 
 // http://ftp.sunet.se/pub/lang/CRAN/doc/manuals/r-devel/R-exts.html#Handling-R-objects-in-C
-SEXP fastrank_numeric_average(SEXP x) {
-    R_xlen_t n = xlength(x);
-    // Because ties are average, the ranks returned are reals
-    SEXP result = PROTECT(allocVector(REALSXP, n));
-    double *rx = REAL(x), *rresult = REAL(result);
-    // do I need to PROTECT here?
-    R_xlen_t *indx = (R_xlen_t *) R_alloc(n, sizeof(R_xlen_t));
-    double *ranks = (R_xlen_t *) R_alloc(n, sizeof(double));
-    // Note: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
-    rsort_with_index(rx, indx, n);  // same permutation to indx
-    // traverse rx, looking for ties and remembering rank when we have them
 
-    // now to break ties, step through sorted values
-    double rb = rx[0];
-    R_xlen_t ib = 0;
-    for (R_xlen_t i = 1; i < n; ++i) {
-        if (rx[i] != rb) { // consecutive numbers differ
-            if (ib < i - 1) { // there is at least one previous tie
-                // sum of ranks from a to b
-                // sum = (b + a) * (b - a + 1) / 2;
+#ifdef LONG_VECTOR_SUPPORT
+#  define MY_SIZE_T R_xlen_t
+#  define MY_LENGTH xlength
+#else
+#  define MY_SIZE_T int
+#  define MY_LENGTH length
+#endif
+
+void rquicksort_I (double a[], MY_SIZE_T indx[], const MY_SIZE_T n);
+
+SEXP fastrank_numeric_average(SEXP s_x) {
+    MY_SIZE_T n = MY_LENGTH(s_x);
+
+    SEXP s_result = PROTECT(allocVector(REALSXP, n)); // ranks are doubles
+    double *x = REAL(s_x), *result = REAL(s_result);
+    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
+#ifdef use_R_sort
+    R_qsort_I(x, indx, (MY_SIZE_T)1, (MY_SIZE_T)n);
+#else
+    for (MY_SIZE_T i = 0; i < n; ++i)  // pre-fill indx with index from 0..n-1
+        indx[i] = i;
+    rquicksort_I(x, indx, n);
+#endif
+
+    // Note: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
+
+    // rsort_with_index(s_x, indx, n);
+
+    double *ranks = (double *) R_alloc(n, sizeof(double));
+    double b = x[0];
+    MY_SIZE_T ib = 0;
+    MY_SIZE_T i;
+    for (i = 1; i < n; ++i) {
+        if (x[i] != b) { // consecutive numbers differ
+            if (ib < i - 1) {
+                // at least one previous tie, b=i-1, a=ib
+                // sum of ranks = (b + a) * (b - a + 1) / 2;
                 // avg_rank = sum / (b - a + 1);
                 // simple_avg_rank = (b + a) / 2.0;
-                double rnk = (indx[i - 1] + indx[ib]) / 2.0;
-                for (R_xlen_t j = ib; j <= i - 1; ++j)
+                // add 2 to compensate for index from 0
+                double rnk = (i - 1 + ib + 2) / 2.0;
+                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
                     ranks[j] = rnk;
             } else {
-                ranks[i] = indx[i];
-                rb = rx[i];
-                ib = i;
+                ranks[ib] = ib + 1;
             }
+            b = x[i];
+            ib = i;
         }
     }
-    // leftover ties
-    if (ib < i - 1) {
-        double rnk = (indx[i - 1] + indx[ib]) / 2.0;
-        for (R_xlen_t j = ib; j <= i - 1; ++j)
+    // now check leftovers
+    if (ib == i - 1)  // last two were unique
+        ranks[ib] = i;
+    else {  // ended with ties
+        double rnk = (i - 1 + ib + 2) / 2.0;
+        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
             ranks[j] = rnk;
     }
+    Rprintf("ranks of sorted vector:\n");
+    for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); Rprintf("\n");
+
     // reorder ranks into the answer
-    for (R_xlen_t i = 0; i < n; ++i)
+    for (MY_SIZE_T i = 0; i < n; ++i)
         result[indx[i]] = ranks[i];
+    Rprintf("reorder ranks into original order of vector:\n");
+    for (int i = 0; i < n; ++i) Rprintf("%.1f   ", result[i]); Rprintf("\n");
+
     UNPROTECT(1);
-    return result;
+    return s_result;
 }
 
 // quick_sort code modified from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort
-
-template<class T>
-void quick_sort (std::vector<T>& a, const int n) {
-    T p, t;
-    int i, j;
+// to return a vector of previous indices
+void rquicksort_I (double a[], MY_SIZE_T indx[], const MY_SIZE_T n) {
+    double p, t;
+    MY_SIZE_T i, j, it;
     if (n < 2)
         return;
     p = a[n / 2];
@@ -87,11 +113,12 @@ void quick_sort (std::vector<T>& a, const int n) {
             j--;
         if (i >= j)
             break;
-        t = a[i];
-        a[i] = a[j];
-        a[j] = t;
+        // swap values, and swap indices
+        t = a[i];     it = indx[i];
+        a[i] = a[j];  indx[i] = indx[j];
+        a[j] = t;     indx[j] = it;
     }
-    quick_sort(a, i);
-    quick_sort(a + i, n - i);
+    rquicksort_I(a, indx, i);
+    rquicksort_I(a + i, indx + i, n - i);
 }
  
