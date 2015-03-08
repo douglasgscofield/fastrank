@@ -78,14 +78,14 @@ SEXP fastrank_numeric_average(SEXP s_x) {
         for (MY_SIZE_T j = ib; j <= i - 1; ++j)
             ranks[j] = rnk;
     }
-    Rprintf("ranks of sorted vector:\n");
-    for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); Rprintf("\n");
+    //Rprintf("ranks of sorted vector:\n");
+    //for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); Rprintf("\n");
 
     // reorder ranks into the answer
     for (MY_SIZE_T i = 0; i < n; ++i)
         result[indx[i]] = ranks[i];
-    Rprintf("reorder ranks into original order of vector:\n");
-    for (int i = 0; i < n; ++i) Rprintf("%.1f   ", result[i]); Rprintf("\n");
+    //Rprintf("reorder ranks into original order of vector:\n");
+    //for (int i = 0; i < n; ++i) Rprintf("%.1f   ", result[i]); Rprintf("\n");
 
     UNPROTECT(1);
     return s_result;

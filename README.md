@@ -73,6 +73,51 @@ Unit: microseconds
 ~~~~
 
 
+Current results
+---------------
+
+Well my initial implementation is complete and the first results are in.
+Bummer, it is not yet faster than calling `.Internal(rank(...))` but I feel it
+really must be.
+
+~~~~
+> library(microbenchmark)
+> rank_new <- function (x) .Internal(rank(x, length(x), "average"))
+> xx <- sample(100, 100, replace=TRUE)
+> yy <- rnorm(100)
+> microbenchmark(rank(xx), rank_new(xx), fastrank(xx), times=10000)
+Error in fastrank(xx) :
+  REAL() can only be applied to a 'numeric', not a 'integer'
+> xx <- as.numeric(xx)
+> microbenchmark(rank(xx), rank_new(xx), fastrank(xx), times=10000)
+Unit: microseconds
+         expr    min      lq      mean median      uq      max neval
+     rank(xx) 27.563 30.1950 35.407322 31.365 32.6175 2745.064 10000
+ rank_new(xx)  2.403  2.9230  3.814224  3.144  3.3095 2596.105 10000
+ fastrank(xx)  3.192  3.7285  6.537482  5.174  5.5830 2637.797 10000
+> fastrank
+function(x) {
+    .Call("fastrank_numeric_average", x, PACKAGE = "fastrank")
+}
+<environment: namespace:fastrank>
+> fastrank_new <- function(x) .Call("fastrank_numeric_avg", x, PACKAGE="fastrank")
+> microbenchmark(rank(xx), rank_new(xx), fastrank(xx), fastrank_new(xx), times=10000)
+Error in .Call("fastrank_numeric_avg", x, PACKAGE = "fastrank") :
+  "fastrank_numeric_avg" not available for .Call() for package "fastrank"
+> microbenchmark(rank(xx), rank_new(xx), fastrank(xx), times=10000)
+Unit: microseconds
+         expr    min      lq      mean  median     uq      max neval
+     rank(xx) 26.980 29.7335 35.094786 30.8445 32.027 4204.288 10000
+ rank_new(xx)  2.417  2.9140  3.538192  3.1310  3.288 3106.531 10000
+ fastrank(xx)  3.212  3.7170  6.058158  5.1055  5.531 3164.499 10000
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy), times=10000)
+Unit: microseconds
+         expr    min     lq      mean  median     uq      max neval
+     rank(yy) 26.551 28.874 33.818973 29.9980 31.039 2944.843 10000
+ rank_new(yy)  2.114  2.572  3.119958  2.7940  2.949 2488.677 10000
+ fastrank(yy)  3.065  3.575  5.801389  4.8815  5.340 2937.812 10000
+~~~~
+
 
 The plan
 --------
