@@ -1,5 +1,6 @@
 #include <R.h>
 #include <Rinternals.h>
+#include <R_ext/Rdynload.h>
 
 #undef use_R_sort
 
@@ -10,6 +11,25 @@
 #  define MY_SIZE_T int
 #  define MY_LENGTH length
 #endif
+
+SEXP fastrank_numeric_average(SEXP s_x);
+
+// Registering the routines with R
+static R_NativePrimitiveArgType fastrank_numeric_average_t[] = {
+    REALSXP
+};
+static R_CMethodDef cMethods[] = {
+    {"fastrank_numeric_average", (DL_FUNC) &fastrank_numeric_average, 1, 
+        fastrank_numeric_average_t},
+    {NULL, NULL, 0}
+};
+static R_CallMethodDef callMethods[] = {
+    {"fastrank_numeric_average", (DL_FUNC) &fastrank_numeric_average, 1},
+    {NULL, NULL, 0}
+};
+void R_init_fastrank(DllInfo *info) {
+    R_registerRoutines(info, cMethods, callMethods, NULL, NULL);
+}
 
 void rquicksort_I (double a[], MY_SIZE_T indx[], const MY_SIZE_T n);
 

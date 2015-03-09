@@ -76,6 +76,62 @@ Unit: microseconds
 Current results
 ---------------
 
+**Still sorting the passed vector**, need to not do that.
+
+### Latest results
+
+After following the advice of <http://ftp.sunet.se/pub/lang/CRAN/doc/manuals/r-devel/R-exts.html#Registering-native-routines> and registering my C routine with R to reduce symbol search times, we are getting much more comparable benchmark results:
+
+```C
+#include <R_ext/Rdynload.h>
+
+...
+
+SEXP fastrank_numeric_average(SEXP s_x);
+
+// Registering the routines with R
+static R_NativePrimitiveArgType fastrank_numeric_average_t[] = {
+    REALSXP
+};
+static R_CMethodDef cMethods[] = {
+    {"fastrank_numeric_average", (DL_FUNC) &fastrank_numeric_average, 1, 
+        fastrank_numeric_average_t},
+    {NULL, NULL, 0}
+};
+static R_CallMethodDef callMethods[] = {
+    {"fastrank_numeric_average", (DL_FUNC) &fastrank_numeric_average, 1},
+    {NULL, NULL, 0}
+};
+void R_init_fastrank(DllInfo *info) {
+    R_registerRoutines(info, cMethods, callMethods, NULL, NULL);
+}
+```
+
+However I still cannot call the C routine directly within R.  Will I ever be able to do that, or is the intervening R stub always necessary?
+
+```R
+> devtools::load_all()
+Loading fastrank
+> microbenchmark(rank(xx), rank_new(xx), fastrank(xx), times=10000)
+Unit: microseconds
+         expr    min      lq      mean  median      uq      max neval
+     rank(xx) 26.694 28.4265 32.418030 28.9940 29.7285 2998.105 10000
+ rank_new(xx)  2.383  2.7710  3.038986  2.9700  3.1410   84.867 10000
+ fastrank(xx)  2.247  2.7210  4.979082  3.1975  3.6435 2958.373 10000
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy), times=10000)
+Unit: microseconds
+         expr    min     lq      mean median     uq      max neval
+     rank(yy) 26.361 28.247 31.896437 28.834 29.539 3049.120 10000
+ rank_new(yy)  2.102  2.488  3.871496  2.689  2.861 2881.963 10000
+ fastrank(yy)  2.114  2.574  4.350697  3.085  3.494 2905.780 10000
+> microbenchmark(rank(xx), rank_new(xx), fastrank(xx), fastrank_numeric_average(xx), times=10000)
+Error in microbenchmark(rank(xx), rank_new(xx), fastrank(xx), fastrank_numeric_average(xx),  :
+  could not find function "fastrank_numeric_average"
+```
+
+
+### Initial results
+
 Well my initial implementation is complete and the first results are in.
 Bummer, it is not yet faster than calling `.Internal(rank(...))` but I feel it
 really must be.  Some observations:
