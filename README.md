@@ -76,7 +76,10 @@ Unit: microseconds
 Current results
 ---------------
 
-**Still sorting the passed vector**, need to not do that.
+1. **Still sorting the passed vector**, need to not do that.
+2. Do general interface with `R_orderVector`.
+3. What are the errors once sees with incorrect data?
+4. Update all these experiences over in the **R-package-utilities** repository.
 
 ### Latest results
 
@@ -140,7 +143,7 @@ really must be.  Some observations:
 * Note the error by failing to make `xx` be numeric
 * Note the error for `fastrank_numeric_average` not being available, can I make the C interface directly available?
 
-~~~~
+```R
 > library(microbenchmark)
 > rank_new <- function (x) .Internal(rank(x, length(x), "average"))
 > xx <- sample(100, 100, replace=TRUE)
@@ -176,7 +179,7 @@ Unit: microseconds
      rank(yy) 26.551 28.874 33.818973 29.9980 31.039 2944.843 10000
  rank_new(yy)  2.114  2.572  3.119958  2.7940  2.949 2488.677 10000
  fastrank(yy)  3.065  3.575  5.801389  4.8815  5.340 2937.812 10000
-~~~~
+```
 
 
 The plan
