@@ -12,18 +12,22 @@
 #  define MY_LENGTH length
 #endif
 
+SEXP fastrank(SEXP s_x);
 SEXP fastrank_numeric_average(SEXP s_x);
 
 // Registering the routines with R
-static R_NativePrimitiveArgType fastrank_numeric_average_t[] = {
+static R_NativePrimitiveArgType fastrank_real_t[] = {
     REALSXP
 };
 static R_CMethodDef cMethods[] = {
+    {"fastrank",                 (DL_FUNC) &fastrank,                 1,
+        fastrank_real_t},
     {"fastrank_numeric_average", (DL_FUNC) &fastrank_numeric_average, 1, 
-        fastrank_numeric_average_t},
+        fastrank_real_t},
     {NULL, NULL, 0}
 };
 static R_CallMethodDef callMethods[] = {
+    {"fastrank",                 (DL_FUNC) &fastrank,                 1},
     {"fastrank_numeric_average", (DL_FUNC) &fastrank_numeric_average, 1},
     {NULL, NULL, 0}
 };
@@ -135,12 +139,43 @@ void rquicksort_I (double a[], MY_SIZE_T indx[], const MY_SIZE_T n) {
     rquicksort_I(a + i, indx + i, n - i);
 }
  
-// Note: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
-//
-// void R_orderVector (int* indx, int n, SEXP arglist, Rboolean nalast, Rboolean decreasing)
-//
-// From 3.0.0, vectors may not reliably be int, so use R_xlen_t for the length type and
-// xlength() to get a vector length, hence R_xlen_t n = xlength(x)
 
-// http://ftp.sunet.se/pub/lang/CRAN/doc/manuals/r-devel/R-exts.html#Handling-R-objects-in-C
+
+//' Calculate rank of general vector, an alternative to calling \code{.Internal(rank(...))}
+//'
+//' @param x            a vector of integers, there must be no NA values.
+//' 
+//' @return a vector the same length as \code{x} with double ranks of the 
+//'         corresponding elements in \code{x}.
+//'
+//' @seealso \code{\link{fastrank}}
+//' 
+//' @keywords internal
+//' 
+//' @export fastrank_numeric_average
+//' 
+SEXP fastrank(SEXP s_x) {
+    MY_SIZE_T n = MY_LENGTH(s_x);
+
+    SEXP s_result = PROTECT(allocVector(REALSXP, n)); // ranks are doubles
+    double *x = REAL(s_x), *result = REAL(s_result);
+    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
+
+    for (MY_SIZE_T i = 0; i < n; ++i)  // pre-fill indx with index from 0..n-1
+        result[i] = (double)i;
+    Rprintf("General fastrank() not yet implemented, ranks are 0..n-1\n");
+    UNPROTECT(1);
+    return s_result;
+
+#ifdef use_R_sort
+    R_qsort_I(x, indx, (MY_SIZE_T)1, (MY_SIZE_T)n);
+#else
+    //for (MY_SIZE_T i = 0; i < n; ++i)  // pre-fill indx with index from 0..n-1
+    //    indx[i] = i;
+    //rquicksort_I(x, indx, n);
+#endif
+
+    // call R_orderVector()
+    // rsort_with_index(s_x, indx, n);
+}
 

@@ -97,13 +97,14 @@ NULL
 
 
 
-#' Rank integer and numeric vectors with low overhead
+#' Rank vectors with low overhead
 #'
-#' An R function providing fast ranking for integer and numeric vectors, as an
-#' alternative to calling .Internal(rank(...)), which packages cannot do.
-#'
-#' There is still a bit of overhead in calling this method.  If you really want
-#' the fastest interface, then call the C function directly.
+#' An R function providing fast ranking vectors, as an alternative to calling 
+#' \code{.Internal(rank(...))}, which packages cannot do.  This entry is as
+#' general as it can be, but so far there is still a bit of overhead in 
+#' calling this method.  If you really want the fastest interface, try using
+#' one of the other entry points (e.g., \code{fastrank_numeric_average}) or 
+#' (if you are not writing package code) call the C function directly.
 #'
 #' @note The vector must not include NAs or NaNs.  This is **not** checked.
 #'
@@ -112,11 +113,11 @@ NULL
 #'                     all available in \code{rank}.  This does **not** provide
 #'                     method \code{"random"}.
 #'
-#' @return An integert vector of ranks of values in \code{x}, with length
-#'         the same as \code{length(x)}.
+#' @return An integer vector of ranks of values in \code{x}, with length
+#' the same as \code{length(x)}.  Ranks of tied values are handled according
+#' to \code{ties.method}, see \code{\link{rank}}.
 #'
-#' @seealso \code{\link{rank}}, \code{\link{order}},
-#'          \code{\link{sort}}
+#' @seealso \code{\link{rank}}
 #'
 #' @references
 #' \url{https://github.com/douglasgscofield/fastrank}
@@ -128,6 +129,39 @@ NULL
 #' @export fastrank
 #'
 fastrank <- function(x) {
+    .Call("fastrank", x, PACKAGE = "fastrank")
+}
+
+
+
+#' Rank integer and numeric vectors with low overhead
+#'
+#' An R function providing fast ranking for integer and numeric vectors, as an
+#' alternative to calling .Internal(rank(...)), which packages cannot do.
+#'
+#' There is still a bit of overhead in calling this method.  If you really want
+#' the fastest interface, then call the C function directly.
+#'
+#' @note The vector must not include NAs or NaNs.  This is **not** checked.
+#'
+#' @param x            A vector of values to rank.
+#'
+#' @return An integer vector of ranks of values in \code{x}, with length
+#' the same as \code{length(x)}.  Ties are broken by giving entries the
+#' average rank of the tied entries.
+#'
+#' @seealso \code{\link{rank}}
+#'
+#' @references
+#' \url{https://github.com/douglasgscofield/fastrank}
+#'
+#' @keywords internal
+#'
+#' @useDynLib fastrank fastrank_numeric_average
+#'
+#' @export fastrank
+#'
+fastrank_numeric_average <- function(x) {
     .Call("fastrank_numeric_average", x, PACKAGE = "fastrank")
 }
 

@@ -220,15 +220,7 @@ Notes:
 
 
 
-The API
+LICENSE
 -------
 
-* Should I provide separate entrypoints for `fastrank_average`, `fastrank_minimum`, etc., to avoid the `strcmp()`, even though that will be very fast?  Benchmark the solutions.
-
-
-TO DO
------
-
-* real package environment
-* use Authors@R
-
+GPL 2, just like R itself.
