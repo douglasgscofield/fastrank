@@ -155,27 +155,18 @@ void rquicksort_I (double a[], MY_SIZE_T indx[], const MY_SIZE_T n) {
 //' @export fastrank_numeric_average
 //' 
 SEXP fastrank(SEXP s_x) {
-    MY_SIZE_T n = MY_LENGTH(s_x);
+    int n = length(s_x);
 
     SEXP s_result = PROTECT(allocVector(REALSXP, n)); // ranks are doubles
     double *x = REAL(s_x), *result = REAL(s_result);
-    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
+    int *indx = (int *) R_alloc(n, sizeof(int));
 
-    for (MY_SIZE_T i = 0; i < n; ++i)  // pre-fill indx with index from 0..n-1
-        result[i] = (double)i;
-    Rprintf("General fastrank() not yet implemented, ranks are 0..n-1\n");
+    Rprintf("General fastrank() in early stages, ranks are 0..n-1\n");
+    R_orderVector(indx, n, s_x, TRUE, FALSE);
+    // so what is the return... the location of the 0th, 1st, 2nd, etc.
+    // elements?  was trying to write this when super tired and couldn't
+    // think my way through it ...
+
     UNPROTECT(1);
     return s_result;
-
-#ifdef use_R_sort
-    R_qsort_I(x, indx, (MY_SIZE_T)1, (MY_SIZE_T)n);
-#else
-    //for (MY_SIZE_T i = 0; i < n; ++i)  // pre-fill indx with index from 0..n-1
-    //    indx[i] = i;
-    //rquicksort_I(x, indx, n);
-#endif
-
-    // call R_orderVector()
-    // rsort_with_index(s_x, indx, n);
 }
-

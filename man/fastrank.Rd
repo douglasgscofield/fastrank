@@ -2,7 +2,7 @@
 % Please edit documentation in R/fastrank.R
 \name{fastrank}
 \alias{fastrank}
-\title{Rank integer and numeric vectors with low overhead}
+\title{Rank vectors with low overhead}
 \usage{
 fastrank(x)
 }
@@ -14,16 +14,17 @@ fastrank(x)
                     method \code{"random"}.}
 }
 \value{
-An integert vector of ranks of values in \code{x}, with length
-        the same as \code{length(x)}.
+An integer vector of ranks of values in \code{x}, with length
+the same as \code{length(x)}.  Ranks of tied values are handled according
+to \code{ties.method}, see \code{\link{rank}}.
 }
 \description{
-An R function providing fast ranking for integer and numeric vectors, as an
-alternative to calling .Internal(rank(...)), which packages cannot do.
-}
-\details{
-There is still a bit of overhead in calling this method.  If you really want
-the fastest interface, then call the C function directly.
+An R function providing fast ranking vectors, as an alternative to calling
+\code{.Internal(rank(...))}, which packages cannot do.  This entry is as
+general as it can be, but so far there is still a bit of overhead in
+calling this method.  If you really want the fastest interface, try using
+one of the other entry points (e.g., \code{fastrank_numeric_average}) or
+(if you are not writing package code) call the C function directly.
 }
 \note{
 The vector must not include NAs or NaNs.  This is **not** checked.
@@ -32,8 +33,7 @@ The vector must not include NAs or NaNs.  This is **not** checked.
 \url{https://github.com/douglasgscofield/fastrank}
 }
 \seealso{
-\code{\link{rank}}, \code{\link{order}},
-         \code{\link{sort}}
+\code{\link{rank}}
 }
 \keyword{internal}
 
