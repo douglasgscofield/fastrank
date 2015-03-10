@@ -180,53 +180,95 @@ SEXP fastrank_(SEXP s_x) {
     switch (TYPEOF(s_x)) {
         case LGLSXP:
         case INTSXP:
-            ix = INTEGER(s_x); break,
+            ix = INTEGER(s_x); break;
         case REALSXP:
-            rx = REAL(s_x); break,
+            rx = REAL(s_x); break;
         case STRSXP:
-            sx = STRING_PTR(s_x); break,
+            sx = STRING_PTR(s_x); break;
         case CPLXSSP:
-            cx = COMPLEX(s_x); break,
+            cx = COMPLEX(s_x); break;
     }
 // note stable comparison @ src/main/sort.c:1003, '<' compares index if '=='
 // these do not need to be stable as they do not trigger rearrangement
-#define IEQUAL(_x, _y) (ix[_x] == ix[_y])
-#define REQUAL(_x, _y) (rx[_x] == rx[_y])
-#define SEQUAL(_x, _y) (Scollate(sx[_x], sx[_y]) == 0)
-#define CEQUAL(_x, _y) (cx[_x].r == cx[_y].r && cx[_x].i == cx[_y].i)
+#define XI(_i) x[indx[_i]]
+#undef EQUAL
+#undef TYPE
+#define SEQUAL(_x, _y) (Scollate(sx[indx[_x]], sx[indx[_y]]) == 0)
+#define CEQUAL(_x, _y) (cx[indx[_x]].r == cx[indx[_y]].r && cx[indx[_x]].i == cx[indx[_y]].i)
+#define rank_avg_XI \
+    TYPE b = XI(0); \
+    int ib = 0; \
+    int i; \
+    for (i = 1; i < n; ++i) { \
+        if (! EQUAL(XI(i), b)) { \
+            if (ib < i - 1) { \
+                double rnk = (i - 1 + ib + 2) / 2.0; \
+                for (int j = ib; j <= i - 1; ++j) \
+                    result[j] = rnk; \
+            } else { \
+                result[ib] = ib + 1; \
+            } \
+            b = XI(i); \
+            ib = i; \
+        } \
+    } \
+    if (ib == i - 1) \
+        result[ib] = i; \
+    else { \
+        double rnk = (i - 1 + ib + 2) / 2.0; \
+        for (int j = ib; j <= i - 1; ++j) \
+            result[j] = rnk; \
+    }
+
+    switch (TYPEOF(s_x)) {
+        case LGLSXP:
+        case INTSXP:
+            {
+#define EQUAL(_x, _y) (_x == _y)
+#define TYPE int
+                TYPE* x = INTEGER(s_x);
+                rank_avg_XI
+#undef EQUAL
+#undef TYPE
+            }
+            break;
+        case REALSXP:
+            {
+#define EQUAL(_x, _y) (_x == _y)
+#define TYPE double
+                TYPE* x = REAL(s_x);
+                rank_avg_XI
+#undef EQUAL
+#undef TYPE
+            }
+            break;
+        case STRSXP:
+            {
+#define EQUAL(_x, _y) (Scollate(_x, _y) == 0)
+#define TYPE SEXP
+                TYPE* x = STRING_PTR(s_x);
+                rank_avg_XI
+#undef EQUAL
+#undef TYPE
+            }
+            break;
+        case CPLXSSP:
+            {
+#define EQUAL(_x, _y) (_x.r == _y.r && _x.i == _y.i)
+#define TYPE Rcomplex
+                TYPE* x = COMPLEX(s_x); break;
+                rank_avg_XI
+#undef EQUAL
+#undef TYPE
+            }
+            break;
+    }
 
 // step through indx[] in order to get the index in s_x (ix[], rx[], etc)
 // in order.  the i we remember is the index into indx[], but the position
 // we check for equality and the rank position we modify is indx[i]
 // TODO: make this a #define macro
-    double b = x[0];
-    int ib = 0;
-    int i;
-    for (i = 1; i < n; ++i) {
-        if (x[i] != b) { // consecutive numbers differ
-            if (ib < i - 1) {
-                double rnk = (i - 1 + ib + 2) / 2.0;
-                for (int j = ib; j <= i - 1; ++j)
-                    result[j] = rnk;
-            } else {
-                result[ib] = ib + 1;
-            }
-            b = x[i];
-            ib = i;
-        }
-    }
-    // now check leftovers
-    if (ib == i - 1)  // last two were unique
-        result[ib] = i;
-    else {  // ended with ties
-        double rnk = (i - 1 + ib + 2) / 2.0;
-        for (int j = ib; j <= i - 1; ++j)
-            result[j] = rnk;
-    }
 
-
-    for (int i = 0; i < n; ++i)  // fill result with index
-        result[i] = (double)indx[i];
 
     UNPROTECT(1);
     return s_result;
