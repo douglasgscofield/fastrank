@@ -79,7 +79,7 @@ vignettes:
 $(CHECKDIR): $(TARBALL_LOC)
 	rm -rf $(CHECKDIR) && mkdir $(CHECKDIR) && cp $(TARBALL_LOC) $(CHECKDIR)
 
-$(TARBALL_LOC): NEWS doc vignettes R/*.R man/*.Rd data/* inst/*
+$(TARBALL_LOC): NEWS doc vignettes R/*.R man/*.Rd
 	cd $(PARENTDIR) && RSTUDIO_PANDOC=`which pandoc` R CMD build $(PACKAGE)
 
 testthat:

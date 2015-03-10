@@ -8,10 +8,6 @@ fastrank(x)
 }
 \arguments{
 \item{x}{A vector of values to rank.}
-
-\item{ties.method}{Method for resolving rank ties in \code{x}.  Provides
-                    all available in \code{rank}.  This does **not** provide
-                    method \code{"random"}.}
 }
 \value{
 An integer vector of ranks of values in \code{x}, with length

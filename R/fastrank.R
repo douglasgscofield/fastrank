@@ -95,7 +95,7 @@ NULL
 #'
 #' @keywords internal
 #'
-#' @useDynLib fastrank fastrank
+#' @useDynLib fastrank fastrank_
 #'
 #' @export fastrank
 #'
@@ -103,7 +103,7 @@ NULL
 #                                        "min")) {
 # TODO: manage ties.method, how does the internal rank do it?
 fastrank <- function(x) {
-    .Call("fastrank", x, PACKAGE = "fastrank")
+    .Call("fastrank_", x, PACKAGE = "fastrank")
 }
 
 
@@ -131,11 +131,11 @@ fastrank <- function(x) {
 #'
 #' @keywords internal
 #'
-#' @useDynLib fastrank fastrank_numeric_average
+#' @useDynLib fastrank fastrank_num_avg_
 #'
-#' @export fastrank
+#' @export fastrank_num_avg
 #'
-fastrank_numeric_average <- function(x) {
-    .Call("fastrank_numeric_average", x, PACKAGE = "fastrank")
+fastrank_num_avg <- function(x) {
+    .Call("fastrank_num_avg_", x, PACKAGE = "fastrank")
 }
 

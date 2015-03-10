@@ -10,4 +10,5 @@
 ^NEWS.md$
 ^TODO.md$
 ^test$
-^test\..$
+^src/test\.o$
+^src/test\.c$
