@@ -79,7 +79,13 @@ NULL
 #'
 #' @note The vector must not include NAs or NaNs.  This is **not** checked.
 #'
-#' @param x            A vector of values to rank.
+#' The vector must also not be of type character.
+#'
+#' @param x A vector of values to rank.  Note that character vectors are not
+#' accepted, as the internal R routines for comparing characters as R does
+#' are not part of the R API.  Please use \code{\link{rank}} from base R
+#' to rank character vectors.
+#'       
 # @param ties.method  Method for resolving rank ties in \code{x}.  Provides
 #                     all available in \code{rank}.  This does **not** provide
 #                     method \code{"random"}.
@@ -103,24 +109,27 @@ NULL
 #                                        "min")) {
 # TODO: manage ties.method, how does the internal rank do it?
 fastrank <- function(x) {
+    if (is.character(x))
+        stop(deparse(substitute(x)), " must not be of type 'character'")
     .Call("fastrank_", x, PACKAGE = "fastrank")
 }
 
 
 
-#' Rank integer and numeric vectors with low overhead
+#' Rank numeric (double) vectors, assigning ties the average rank
 #'
-#' An R function providing fast ranking for integer and numeric vectors, as an
-#' alternative to calling .Internal(rank(...)), which packages cannot do.
+#' An R function providing fast ranking for numeric vectors, assigning tied
+#' values the average rank.
 #'
 #' There is still a bit of overhead in calling this method.  If you really want
-#' the fastest interface, then call the C function directly.
+#' the fastest interface, then call .\code{.Internal(rank(...))} function 
+#' directly.
 #'
 #' @note The vector must not include NAs or NaNs.  This is **not** checked.
 #'
-#' @param x            A vector of values to rank.
+#' @param x A vector of numeric (double) values to rank
 #'
-#' @return An integer vector of ranks of values in \code{x}, with length
+#' @return A numeric vector of ranks of values in \code{x}, with length
 #' the same as \code{length(x)}.  Ties are broken by giving entries the
 #' average rank of the tied entries.
 #'
@@ -136,6 +145,8 @@ fastrank <- function(x) {
 #' @export fastrank_num_avg
 #'
 fastrank_num_avg <- function(x) {
+    if (! is.double(x))
+        stop(deparse(substitute(x)), " must be of type 'numeric', 'double'")
     .Call("fastrank_num_avg_", x, PACKAGE = "fastrank")
 }
 

@@ -154,123 +154,111 @@ void fastrank_rquicksort_I_ (double a[], MY_SIZE_T indx[], const MY_SIZE_T n) {
 // 
 // @export fastrank_
 // 
+
+// here we must follow what R_orderVector() declares for its indx argument
+#ifdef LONG_VECTOR_SUPPORT
+#  define ROV_SIZE_T int
+#  define ROV_LENGTH length
+#else
+#  define ROV_SIZE_T int
+#  define ROV_LENGTH length
+#endif
+
 SEXP fastrank_(SEXP s_x) {
     Rprintf("General fastrank() in early stages\n");
 
-    int n = length(s_x);
+    ROV_SIZE_T n = ROV_LENGTH(s_x);
     Rprintf("length of s_x = %d\n", n);
 
-    SEXP s_result = PROTECT(allocVector(REALSXP, n)); // ranks are doubles
-    double *result = REAL(s_result);
-    Rprintf("address of result = 0x%p\n", result);
+    SEXP s_ranks = PROTECT(allocVector(REALSXP, n)); // ranks are doubles
+    double *ranks = REAL(s_ranks);
+    Rprintf("address of ranks = 0x%p\n", ranks);
 
-    int *indx = (int *) R_alloc(n, sizeof(int));
+    ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
     Rprintf("address of indx = 0x%p\n", indx);
 
-    // The Rf_lang1() wrapper is **required**
+    // The Rf_lang1() wrapper is **required**, '1' is the number of args
     R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
     // indx[i] holds the index of the value in s_x that belongs in position i,
     // e.g., indx[0] holds the position in s_x of the first value
     //
-    // Now get proper pointer and proper == comparison routine
-    int *ix = (int*)NULL;  // INTEGER(s_x), types LGLSXP and INTSXP
-    double *rx = (double*)NULL;  // REAL(s_x), type REALSXP
-    SEXP *sx = (SEXP*)NULL;  // STRING_PTR(s_x), type STRSXP
-    Rcomplex *cx = (Rcomplex*)NULL;  // COMPLEX(s_x), type CPLXSXP
-    switch (TYPEOF(s_x)) {
-        case LGLSXP:
-        case INTSXP:
-            ix = INTEGER(s_x); break;
-        case REALSXP:
-            rx = REAL(s_x); break;
-        case STRSXP:
-            sx = STRING_PTR(s_x); break;
-        case CPLXSSP:
-            cx = COMPLEX(s_x); break;
-    }
-// note stable comparison @ src/main/sort.c:1003, '<' compares index if '=='
-// these do not need to be stable as they do not trigger rearrangement
-#define XI(_i) x[indx[_i]]
+    // Now do rank calculations with type-specific pointers and comparisons
+    // note this uses ROV_SIZE_T for vector indexing and ROV_LENGTH for determing
+    // vector length.
+#define XI(_i_) x[indx[_i_]]
 #undef EQUAL
 #undef TYPE
-#define SEQUAL(_x, _y) (Scollate(sx[indx[_x]], sx[indx[_y]]) == 0)
-#define CEQUAL(_x, _y) (cx[indx[_x]].r == cx[indx[_y]].r && cx[indx[_x]].i == cx[indx[_y]].i)
+#define DEBUG 1
 #define rank_avg_XI \
     TYPE b = XI(0); \
-    int ib = 0; \
-    int i; \
+    ROV_SIZE_T ib = 0; \
+    ROV_SIZE_T i; \
+    if (DEBUG) Rprintf("ib = %d\n", ib); \
     for (i = 1; i < n; ++i) { \
         if (! EQUAL(XI(i), b)) { \
+            if (DEBUG) Rprintf("XI(%d) != b\n", ib, b); \
             if (ib < i - 1) { \
                 double rnk = (i - 1 + ib + 2) / 2.0; \
-                for (int j = ib; j <= i - 1; ++j) \
-                    result[j] = rnk; \
+                if (DEBUG) Rprintf("ranks[%d .. %d] <- %f   TIES\n", ib, i - 1, rnk); \
+                for (ROV_SIZE_T j = ib; j <= i - 1; ++j) \
+                    ranks[j] = rnk; \
             } else { \
-                result[ib] = ib + 1; \
+                if (DEBUG) Rprintf("ranks[%d] <- %f\n   SINGLE", ib, (double)(ib + 1)); \
+                ranks[ib] = (double)(ib + 1); \
             } \
             b = XI(i); \
             ib = i; \
+            if (DEBUG) Rprintf("ib = %d\n", ib); \
         } \
     } \
-    if (ib == i - 1) \
-        result[ib] = i; \
-    else { \
+    if (ib == i - 1) {\
+        if (DEBUG) Rprintf("ranks[%d] <- %f   FINAL\n", ib, (double)(ib + 1)); \
+        ranks[ib] = i; \
+    } else { \
         double rnk = (i - 1 + ib + 2) / 2.0; \
-        for (int j = ib; j <= i - 1; ++j) \
-            result[j] = rnk; \
+        if (DEBUG) Rprintf("ranks[%d .. %d] <- %f   FINAL TIES\n", ib, i - 1, rnk); \
+        for (ROV_SIZE_T j = ib; j <= i - 1; ++j) \
+            ranks[j] = rnk; \
     }
 
     switch (TYPEOF(s_x)) {
         case LGLSXP:
         case INTSXP:
             {
+#undef EQUAL
+#undef TYPE
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE int
                 TYPE* x = INTEGER(s_x);
                 rank_avg_XI
-#undef EQUAL
-#undef TYPE
             }
             break;
         case REALSXP:
             {
+#undef EQUAL
+#undef TYPE
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE double
                 TYPE* x = REAL(s_x);
                 rank_avg_XI
-#undef EQUAL
-#undef TYPE
             }
             break;
-        case STRSXP:
+        case CPLXSXP:
             {
-#define EQUAL(_x, _y) (Scollate(_x, _y) == 0)
-#define TYPE SEXP
-                TYPE* x = STRING_PTR(s_x);
-                rank_avg_XI
 #undef EQUAL
 #undef TYPE
-            }
-            break;
-        case CPLXSSP:
-            {
 #define EQUAL(_x, _y) (_x.r == _y.r && _x.i == _y.i)
 #define TYPE Rcomplex
                 TYPE* x = COMPLEX(s_x); break;
                 rank_avg_XI
-#undef EQUAL
-#undef TYPE
             }
+            break;
+        case STRSXP:
+            error("'character' values not allowed, use base R rank()");
             break;
     }
 
-// step through indx[] in order to get the index in s_x (ix[], rx[], etc)
-// in order.  the i we remember is the index into indx[], but the position
-// we check for equality and the rank position we modify is indx[i]
-// TODO: make this a #define macro
-
-
     UNPROTECT(1);
-    return s_result;
+    return s_ranks;
 }
 
