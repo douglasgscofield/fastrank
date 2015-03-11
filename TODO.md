@@ -1,6 +1,7 @@
 TODO
 ----
 
+* Check for bug, if vector ends with ties, is rank calculated as +1 its true value?
 * **Still sorting the passed vector**, need to not do that
 * Proper makefile for compiling C routines
 * Other C interfaces

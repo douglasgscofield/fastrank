@@ -88,7 +88,7 @@ SEXP fastrank_num_avg_(SEXP s_x) {
                 for (MY_SIZE_T j = ib; j <= i - 1; ++j)
                     ranks[j] = rnk;
             } else {
-                ranks[ib] = ib + 1;
+                ranks[ib] = (double)(ib + 1);
             }
             b = x[i];
             ib = i;
@@ -96,7 +96,7 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     }
     // now check leftovers
     if (ib == i - 1)  // last two were unique
-        ranks[ib] = i;
+        ranks[ib] = (double)i;
     else {  // ended with ties
         double rnk = (i - 1 + ib + 2) / 2.0;
         for (MY_SIZE_T j = ib; j <= i - 1; ++j)
@@ -114,6 +114,96 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     UNPROTECT(1);
     return s_result;
 }
+
+
+/*****  ties.method == "min"
+    double b = x[0];
+    MY_SIZE_T ib = 0;
+    MY_SIZE_T i;
+    for (i = 1; i < n; ++i) {
+        if (x[i] != b) { // consecutive numbers differ
+            if (ib < i - 1) {
+                // at least one previous tie, b=i-1, a=ib
+                // minimum rank, which is ib+1
+                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+                    ranks[j] = ib + 1;
+            } else {
+                ranks[ib] = ib + 1;
+            }
+            b = x[i];
+            ib = i;
+        }
+    }
+    // now check leftovers
+    if (ib == i - 1)  // last two were unique
+        ranks[ib] = i;
+    else {  // ended with ties
+        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+            ranks[j] = ib + 1;
+    }
+*****/
+
+/*****  ties.method == "max"
+    double b = x[0];
+    MY_SIZE_T ib = 0;
+    MY_SIZE_T i;
+    for (i = 1; i < n; ++i) {
+        if (x[i] != b) { // consecutive numbers differ
+            if (ib < i - 1) {
+                // at least one previous tie, b=i-1, a=ib
+                // minimum rank, which is ib+1
+                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+                    ranks[j] = i;
+            } else {
+                ranks[ib] = ib + 1;
+            }
+            b = x[i];
+            ib = i;
+        }
+    }
+    // now check leftovers
+    if (ib == i - 1)  // last two were unique
+        ranks[ib] = i;
+    else {  // ended with ties
+        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+            ranks[j] = i;
+    }
+*****/
+
+/*****  ties.method == "first"
+    for (i = 0; i < n; ++i) {
+        ranks[i] = i + 1;
+    }
+*****/
+
+/*****  ties.method == "random"  NOT COMPLETED
+    double b = x[0];
+    MY_SIZE_T ib = 0;
+    MY_SIZE_T i;
+    for (i = 1; i < n; ++i) {
+        if (x[i] != b) { // consecutive numbers differ
+            if (ib < i - 1) {
+                // at least one previous tie, b=i-1, a=ib
+                // minimum rank, which is ib+1
+                rnk = sample((ib+1):i, size=(i-ib), replace=FALSE)
+                for (MY_SIZE_T j = ib, k = 0; j <= i - 1; ++j, ++k)
+                    ranks[j] = (double)rnk[k];
+            } else {
+                ranks[ib] = (double)(ib + 1);
+            }
+            b = x[i];
+            ib = i;
+        }
+    }
+    // now check leftovers
+    if (ib == i - 1)  // last two were unique
+        ranks[ib] = i;
+    else {  // ended with ties
+        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+            ranks[j] = i;
+    }
+*****/
+
 
 // quick_sort code modified from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort
 // to return a vector of previous indices
@@ -165,7 +255,10 @@ void fastrank_rquicksort_I_ (double a[], MY_SIZE_T indx[], const MY_SIZE_T n) {
 #endif
 
 SEXP fastrank_(SEXP s_x) {
-    Rprintf("General fastrank() in early stages\n");
+    Rprintf("General fastrank(), development in early stages\n");
+
+    if (TYPEOF(s_x) == STRSXP)
+        error("'character' values not allowed, use 'rank'");
 
     ROV_SIZE_T n = ROV_LENGTH(s_x);
     Rprintf("length of s_x = %d\n", n);
@@ -225,8 +318,6 @@ SEXP fastrank_(SEXP s_x) {
         case LGLSXP:
         case INTSXP:
             {
-#undef EQUAL
-#undef TYPE
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE int
                 TYPE* x = INTEGER(s_x);
@@ -253,8 +344,8 @@ SEXP fastrank_(SEXP s_x) {
                 rank_avg_XI
             }
             break;
-        case STRSXP:
-            error("'character' values not allowed, use base R rank()");
+        default:
+            error("'x' has incorrect structure (not a vector?...)");
             break;
     }
 
