@@ -28,6 +28,29 @@ int main(int argc, char* argv[]) {
     //for (int i = 0; i < n; ++i) printf("%d    ", indx[i]); putchar('\n');
     double* result = (double*) malloc(n * sizeof(double));
     double* ranks = (double*) malloc(n * sizeof(double));
+
+#define FR_ties_random(__loc__) \
+    int tn = i - ib; \
+    int* t = (int*) malloc(tn * sizeof(int)); \
+    int j; \
+    for (j = 0; j < tn; ++j) \
+        t[j] = j; \
+    for (j = ib; j < i - 1; ++j) { \
+        int k = (int)(tn * (rand()/(double)RAND_MAX)); \
+        printf("j: %d, k rnd index: %d  " __loc__ "\n", j, k); \
+        ranks[j] = (double)(t[k] + ib + 1); \
+        t[k] = t[--tn]; \
+    } \
+    int k = t[0] + ib + 1; \
+    printf("j: %d, last tie index: %d  " __loc__ "\n", j, k); \
+    ranks[j] = k;
+
+#define FFFF(__ties__) \
+    __ties__("MIDDLE")
+
+#define GGGG(__ties__) \
+    __ties__("FINAL")
+
     // now to break ties, step through sorted values
     int b = x[0];
     int ib = 0;
@@ -35,19 +58,8 @@ int main(int argc, char* argv[]) {
     for (i = 1; i < n; ++i) {
         if (x[i] != b) { // consecutive numbers differ
             if (ib < i - 1) {
-                // at least one previous tie, b=i-1, a=ib
-                // number of ties is i - ib
-                // STILL MAJOR BUGS HERE
-                int tn = i - ib;
-                int* t = (int*) malloc(tn * sizeof(int));
-                for (int j = 0; j < tn; ++j)
-                    t[j] = j;
-                for (int j = ib; j <= i - 1; ++j) {
-                    int k = (int)(tn * (rand()/(double)RAND_MAX));
-                    printf("j: %d, k rnd index: %d  MIDDLE\n", j, k);
-                    ranks[j] = (double)(t[k] + j + 1);
-                    t[k] = t[--tn];  // shrink the pool
-                }
+                //FR_ties_random("MIDDLE")
+                FFFF(FR_ties_random)
             } else {
                 ranks[ib] = ib + 1;
             }
@@ -59,17 +71,8 @@ int main(int argc, char* argv[]) {
     if (ib == i - 1)  // last two were unique
         ranks[ib] = i;
     else {  // ended with ties
-        // STILL MAJOR BUGS HERE
-        int tn = i - ib;
-        int* t = (int*) malloc(tn * sizeof(int));
-        for (int j = 0; j < tn; ++j)
-            t[j] = j;
-        for (int j = ib; j <= i - 1; ++j) {
-            int k = (int)(tn * (rand()/(double)RAND_MAX));
-            printf("j: %d, k rnd index: %d  FINAL\n", j, k);
-            ranks[j] = (double)(t[k] + j + 1);
-            t[k] = t[--tn];  // shrink the pool
-        }
+        //FR_ties_random("FINAL")
+        GGGG(FR_ties_random)
     }
     //printf("ranks of sorted vector:\n");
     //for (int i = 0; i < n; ++i) printf("%.1f   ", ranks[i]); putchar('\n');

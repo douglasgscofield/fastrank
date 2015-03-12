@@ -5,8 +5,9 @@
 ^\.gitignore$
 ^Makefile$
 ^check_tmp$
-^example_plot.png$
-^sedgwick_landscape_fewtrees.jpg$
+^example_plot\.png$
+^sedgwick_landscape_fewtrees\.jpg$
 ^NEWS.md$
 ^TODO.md$
 ^src/tst$
+^.*\.dSYM$

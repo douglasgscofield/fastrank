@@ -2,7 +2,7 @@ fastrank
 ========
 
 An R package providing fast ranking for integer and numeric vectors, as an
-alternative to calling .Internal(rank(...)), which packages cannot do.
+alternative to calling `.Internal(rank(...))`, which packages cannot do.
 
 The motivation for this comes from my development of the `nestedRanksTest`
 package.  A standard run with the default 10,000 bootstrap iterations takes
@@ -80,6 +80,9 @@ Current results
 2. Do general interface with `R_orderVector`.
 3. What are the errors once sees with incorrect data?
 4. Update all these experiences over in the **R-package-utilities** repository.
+5. No character values accepted (we can't collate like R does)
+6. Is our sort stable?
+7. 
 
 ### Latest results
 

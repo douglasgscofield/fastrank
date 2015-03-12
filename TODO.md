@@ -1,7 +1,9 @@
 TODO
 ----
 
-* Still major bugs in tst/test_random.c
+* Warn the user of no long vector support, use base R `rank()`
+* Warn the user that character values are not accepted
+* Test the multiple ties.methods in one function
 * For `ties.method` min, max, first, random, there is no need for a `double` rank return value.  What does R do in these cases?
 * For `fastrank`, checking for character in R wrapper *and* in C code, how much faster is it to avoid one or both of these?  The check in R wrapper happens for all invocations, but the check in C code happens after a `switch` and only if the TYPEOF is actually character, so should be much faster for all cases.  Or is that not true?  Did I move the check earlier so as to avoid the `R_orderVector` call?
 * Proper makefile for compiling C routines, look into `Makevars` and `Makevars.win` (mentioned in <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-C_002b_002b11-code>)
@@ -26,6 +28,7 @@ TODO
 Completed
 ---------
 
+* Fixed major bugs in src/tst/test_random.c, seems to work great now!
 * Registered the single function so far for efficiency while loading, http://cran.rstudio.com/doc/manuals/r-devel/R-exts.html#Registering-native-routines, and it makes a sizable difference, see the README.
 * Completed C interfaces
   * fastrank_num_avg
