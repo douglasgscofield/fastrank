@@ -1,6 +1,7 @@
 TODO
 ----
 
+* From R source sort.c/do_rank(): rank vector is double if `ties.method=="average"` or long vector, integer otherwise
 * Warn the user of no long vector support, use base R `rank()`
 * Warn the user that character values are not accepted
 * Test the multiple ties.methods in one function

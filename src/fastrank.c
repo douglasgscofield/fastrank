@@ -264,9 +264,11 @@ SEXP fastrank_(SEXP s_x) {
     ROV_SIZE_T n = ROV_LENGTH(s_x);
     Rprintf("length of s_x = %d\n", n);
 
+    ///////  need to accomodate return-type 
     SEXP s_ranks = PROTECT(allocVector(REALSXP, n)); // ranks are doubles
     double *ranks = REAL(s_ranks);
     Rprintf("address of ranks = 0x%p\n", ranks);
+    ///////
 
     ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
     Rprintf("address of indx = 0x%p\n", indx);
@@ -287,12 +289,13 @@ SEXP fastrank_(SEXP s_x) {
 /* we will define each of these for each data type */
 #undef EQUAL
 #undef TYPE
+#undef RTYPE
 /* include inline debug statements? */
 #define DEBUG 1
 
 /* ties' rank is the minimum of their ranks */
 #define FR_ties_min(__loc__) \
-    double rnk = (double)(ib + 1); \
+    RTYPE rnk = (RTYPE)(ib + 1); \
     if (DEBUG) Rprintf("min, ranks[%d .. %d] <- %f   " __loc__ "\n", ib, i - 1, rnk); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[j] = rnk; \
@@ -300,7 +303,7 @@ SEXP fastrank_(SEXP s_x) {
 
 /* ties' rank is the maximum of their ranks */
 #define FR_ties_max(__loc__) \
-    double rnk = (double)i; \
+    RTYPE rnk = (RTYPE)i; \
     if (DEBUG) Rprintf("max, ranks[%d .. %d] <- %f   " __loc__ "\n", ib, i - 1, rnk); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[j] = rnk; \
@@ -308,7 +311,7 @@ SEXP fastrank_(SEXP s_x) {
 
 /* ties' rank is the average of their ranks */
 #define FR_ties_average(__loc__) \
-    double rnk = (i - 1 + ib + 2) / 2.0; \
+    RTYPE rnk = (i - 1 + ib + 2) / 2.0; \
     if (DEBUG) Rprintf("average, ranks[%d .. %d] <- %f   " __loc__ "\n", ib, i - 1, rnk); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[j] = rnk; \
@@ -318,7 +321,7 @@ SEXP fastrank_(SEXP s_x) {
 #define FR_ties_first(__loc__) \
     Rprintf("ties.method == 'first' only truly correct when the sort is stable"); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
-        double rnk = (double)(j + 1); \
+        RTYPE rnk = (RTYPE)(j + 1); \
         if (DEBUG) Rprintf("first, ranks[%d] <- %f  " __loc__ "\n", j, rnk); \
         ranks[j] = rnk; \
     }
@@ -332,12 +335,12 @@ SEXP fastrank_(SEXP s_x) {
         t[j] = j; \
     for (j = ib; j < i - 1; ++j) { \
         ROV_SIZE_T k = (ROV_SIZE_T)(tn * unif_rand()); \
-        double rnk = (double)(t[k] + ib + 1); \
+        RTYPE rnk = (RTYPE)(t[k] + ib + 1); \
         if (DEBUG) Rprintf("random, rank[%d] <- %f  " __loc__ "\n", j, rnk); \
         ranks[j] = rnk; \
         t[k] = t[--tn]; \
     } \
-    double rnk = (double)(t[0] + ib + 1); \
+    RTYPE rnk = (RTYPE)(t[0] + ib + 1); \
     if (DEBUG) Rprintf("random, rank[%d] <- %f  " __loc__ "\n", j, rnk); \
     ranks[j] = rnk;
 
@@ -375,6 +378,7 @@ SEXP fastrank_(SEXP s_x) {
             {
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE int
+#define RTYPE double
                 TYPE* x = INTEGER(s_x);
                 FR_rank(FR_ties_average)
             }
@@ -383,8 +387,10 @@ SEXP fastrank_(SEXP s_x) {
             {
 #undef EQUAL
 #undef TYPE
+#undef RTYPE
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE double
+#define RTYPE double
                 TYPE* x = REAL(s_x);
                 FR_rank(FR_ties_average)
             }
@@ -393,8 +399,10 @@ SEXP fastrank_(SEXP s_x) {
             {
 #undef EQUAL
 #undef TYPE
+#undef RTYPE
 #define EQUAL(_x, _y) (_x.r == _y.r && _x.i == _y.i)
 #define TYPE Rcomplex
+#define RTYPE double
                 TYPE* x = COMPLEX(s_x); break;
                 FR_rank(FR_ties_average)
             }
