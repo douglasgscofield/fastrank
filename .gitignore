@@ -27,3 +27,5 @@ inst/doc
 *.so
 *.dll
 src/tst/test
+src/tst/test_random
+src/tst/sample

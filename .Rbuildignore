@@ -9,6 +9,4 @@
 ^sedgwick_landscape_fewtrees.jpg$
 ^NEWS.md$
 ^TODO.md$
-^test$
-^src/test\.o$
-^src/test\.c$
+^src/tst$

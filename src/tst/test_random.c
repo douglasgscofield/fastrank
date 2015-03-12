@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < argc; ++i)
         printf("argv[%d]: %s   ", i, argv[i]);
     putchar('\n');
-    printf("breaking ties with average rank\n");
+    printf("breaking ties with random ranks\n");
     int max = atoi(argv[1]);
     int n = atoi(argv[2]);
     printf("random vector:  max: %d   n: %d\n", max, n);
@@ -36,13 +36,18 @@ int main(int argc, char* argv[]) {
         if (x[i] != b) { // consecutive numbers differ
             if (ib < i - 1) {
                 // at least one previous tie, b=i-1, a=ib
-                // sum of ranks = (b + a) * (b - a + 1) / 2;
-                // avg_rank = sum / (b - a + 1);
-                // simple_avg_rank = (b + a) / 2.0;
-                // add 2 to compensate for index from 0
-                double rnk = (i - 1 + ib + 2) / 2.0;
-                for (int j = ib; j <= i - 1; ++j)
-                    ranks[j] = rnk;
+                // number of ties is i - ib
+                // STILL MAJOR BUGS HERE
+                int tn = i - ib;
+                int* t = (int*) malloc(tn * sizeof(int));
+                for (int j = 0; j < tn; ++j)
+                    t[j] = j;
+                for (int j = ib; j <= i - 1; ++j) {
+                    int k = (int)(tn * (rand()/(double)RAND_MAX));
+                    printf("j: %d, k rnd index: %d  MIDDLE\n", j, k);
+                    ranks[j] = (double)(t[k] + j + 1);
+                    t[k] = t[--tn];  // shrink the pool
+                }
             } else {
                 ranks[ib] = ib + 1;
             }
@@ -54,9 +59,17 @@ int main(int argc, char* argv[]) {
     if (ib == i - 1)  // last two were unique
         ranks[ib] = i;
     else {  // ended with ties
-        double rnk = (i - 1 + ib + 2) / 2.0;
-        for (int j = ib; j <= i - 1; ++j)
-            ranks[j] = rnk;
+        // STILL MAJOR BUGS HERE
+        int tn = i - ib;
+        int* t = (int*) malloc(tn * sizeof(int));
+        for (int j = 0; j < tn; ++j)
+            t[j] = j;
+        for (int j = ib; j <= i - 1; ++j) {
+            int k = (int)(tn * (rand()/(double)RAND_MAX));
+            printf("j: %d, k rnd index: %d  FINAL\n", j, k);
+            ranks[j] = (double)(t[k] + j + 1);
+            t[k] = t[--tn];  // shrink the pool
+        }
     }
     //printf("ranks of sorted vector:\n");
     //for (int i = 0; i < n; ++i) printf("%.1f   ", ranks[i]); putchar('\n');
