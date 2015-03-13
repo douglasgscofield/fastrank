@@ -125,25 +125,6 @@ Unit: microseconds
 
 ```
 
-Does it make a difference if we use the function name directly, rather than quoted?  Typing the function name directly gets us the registration record?  No, no real difference.
-
-```R
-> fr1 = function(x) .Call(fastrank_, x, "average", 1L)
-> fr2 = function(x) .Call(fastrank_, x, "average", 2L)
-> microbenchmark(rank_new(x), fr1(x), fr2(x), times=100000)
-Unit: microseconds
-        expr   min    lq     mean median    uq      max neval
- rank_new(x) 1.305 1.420 1.708923  1.486 1.576 7919.421 1e+05
-      fr1(x) 2.703 2.872 3.530667  2.958 3.076 8073.943 1e+05
-      fr2(x) 2.696 2.877 3.387444  2.962 3.079 8567.344 1e+05
-> microbenchmark(rank_new(x), fr1(x), fr2(x), times=100000)
-Unit: microseconds
-        expr   min    lq     mean median    uq      max neval
- rank_new(x) 1.298 1.426 1.982873  1.504 1.595 8776.356 1e+05
-      fr1(x) 2.700 2.884 3.572792  2.978 3.099 8051.271 1e+05
-      fr2(x) 2.697 2.888 3.167277  2.981 3.100 7277.705 1e+05
-```
-
 Still need to find some time... also the 2nd method of finding ties is faster.  There is also an effect of providing additional arguments through the R interface.  Better to use `.Call` directly.
 
 ```R
@@ -167,20 +148,15 @@ Unit: microseconds
        fr(x) 2.645 2.810 3.279320  2.890 2.997 7785.971 1e+05
 ```
 
-And avoiding the R interface entirely gives a touch more.
+And avoiding the R interface entirely gives a touch more, and doing so shows us clearly the difference between giving the bare name of the C function and the character string of the name.
 
 ```R
-> microbenchmark(.Internal(rank(x, length(x), "average")), .Call("fastrank_", x, "average"), times=100000)
+> microbenchmark(.Internal(rank(x, length(x), "average")), .Call("fastrank_", x, "average"), .Call(fastrank_, x, "average"), times=100000)
 Unit: microseconds
-                                     expr   min    lq     mean median    uq      max neval
- .Internal(rank(x, length(x), "average")) 1.038 1.103 1.279894  1.139 1.203 8783.207 1e+05
-         .Call("fastrank_", x, "average") 2.367 2.479 3.103489  2.548 2.625 9163.957 1e+05
-> microbenchmark(.Internal(rank(x, length(x), "average")), .Call("fastrank_", x, "average"), times=100000)
-Unit: microseconds
-                                     expr   min    lq     mean median    uq      max neval
- .Internal(rank(x, length(x), "average")) 1.032 1.126 1.430717  1.167 1.238 10472.65 1e+05
-         .Call("fastrank_", x, "average") 2.361 2.528 3.110999  2.604 2.693 10940.42 1e+05
-
+                                     expr   min    lq     mean median    uq       max neval
+ .Internal(rank(x, length(x), "average")) 1.042 1.133 1.327148  1.171 1.243  8696.792 1e+05
+         .Call("fastrank_", x, "average") 2.361 2.487 2.994419  2.558 2.646  9965.114 1e+05
+           .Call(fastrank_, x, "average") 2.406 2.589 3.200212  2.657 2.743 10298.581 1e+05
 ```
 
 ### Initial results with direct routine
