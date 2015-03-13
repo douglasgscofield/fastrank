@@ -23,7 +23,7 @@
 
 // need to add ties.method, also the registration needs to change for that
 // API routines
-SEXP fastrank_(SEXP s_x);
+SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_find);
 SEXP fastrank_num_avg_(SEXP s_x);
 
 // Registering the routines with R
@@ -172,61 +172,78 @@ static void fastrank_rquicksort_I_ (double a[],
 // 
 // @export fastrank_
 // 
-SEXP fastrank_(SEXP s_x) {
+SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_find) {
     if (DEBUG) Rprintf("General fastrank(), development in early stages\n");
 
-    /* Is the check here enough?  The check in R code is probably slower,
+    int find_method = INTEGER(s_find)[0];
+    if (find_method < 1 || find_method > 2)
+        error("'find' must be 1 or 2");
+
+    /* Check vector to rank.
+     *
+     * Is the check here enough?  The check in R code is probably slower,
      * and checking in the switch() below is too late, after the 
      * R_orderVector() call
      */
     if (TYPEOF(s_x) == STRSXP)
-        error("'character' values not allowed, use 'rank'");
-
+        error("'character' values not allowed, consider base R 'rank' or converting to a compatible type");
     ROV_SIZE_T n = ROV_LENGTH(s_x);
     if (DEBUG) Rprintf("length of s_x = %d\n", n);
 
-    // now match against ties.method partially so it's as fast as possible
-    //
-    // get a pointer to the character value
-    // char* tm = STRING_PTR(s_tm);  // or whatever
+    /* Now process ties.method */
+    if (TYPEOF(s_tm) != STRSXP)
+        error("ties.method must be one of \"average\", \"first\", \"random\", \"max\", \"min\"");
+    const char* tm = CHAR(STRING_ELT(s_tm, 0));
 
-    enum { TIES_AVERAGE, TIES_FIRST, TIES_MIN,TIES_MAX, 
-           TIES_RANDOM } ties_method;
+    enum { TIES_ERROR = 0, TIES_AVERAGE, TIES_FIRST, TIES_RANDOM,
+           TIES_MAX, TIES_MIN } ties_method;
 
-    // // method 1
-    // if (! strcmp(tm, "average"))
-    //     ties_method = TIES_AVERAGE;
-    // else if (! strcmp(tm, "first"))
-    //     ties_method = TIES_FIRST;
-    // else if (! strcmp(tm, "max"))
-    //     ties_method = TIES_MAX;
-    // else if (! strcmp(tm, "min"))
-    //     ties_method = TIES_MIN;
-    // else if (! strcmp(tm, "random"))
-    //     ties_method = TIES_RANDOM;
-    // else
-    //     error("unknown ties.method");
-    //
-    // // method 2
-    // switch(tm[0]) {
-    // case 'a':
-    //     ties_method = TIES_AVERAGE; break;
-    // case 'f':
-    //     ties_method = TIES_FIRST; break;
-    // case 'm':
-    //     switch(tm[1]) {
-    //     case 'a':
-    //         ties_method = TIES_MAX; break;
-    //     case 'i':
-    //         ties_method = TIES_MIN; break;
-    //     default:
-    //         error("unknown ties.method"); break;
-    //     }
-    // case 'r':
-    //     ties_method = TIES_RANDOM; break;
-    // default:
-    //     error("unknown ties.method"); break;
-    // }
+    if (find_method == 1) {
+
+        /* method 1, is this faster than method 2? is it preferred to method 2? */
+        switch(tm[0]) {
+        case 'a':
+            ties_method = TIES_AVERAGE; break;
+        case 'f':
+            ties_method = TIES_FIRST; break;
+        case 'r':
+            ties_method = TIES_RANDOM; break;
+        case 'm':
+            switch(tm[1]) {
+            case 'a':
+                ties_method = TIES_MAX; break;
+            case 'i':
+                ties_method = TIES_MIN; break;
+            default:
+                ties_method = TIES_ERROR;
+                error("unknown ties.method");
+                break;
+            }
+        default:
+            ties_method = TIES_ERROR;
+            error("unknown ties.method");
+            break;
+        }
+
+    } else {
+
+        /* method 2 */
+        if (! strcmp(tm, "average"))
+            ties_method = TIES_AVERAGE;
+        else if (! strcmp(tm, "first"))
+            ties_method = TIES_FIRST;
+        else if (! strcmp(tm, "random"))
+            ties_method = TIES_RANDOM;
+        else if (! strcmp(tm, "max"))
+            ties_method = TIES_MAX;
+        else if (! strcmp(tm, "min"))
+            ties_method = TIES_MIN;
+        else {
+            ties_method = TIES_ERROR;
+            error("unknown ties.method");
+        }
+
+    }
 
     ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
     if (DEBUG) Rprintf("address of indx = 0x%p\n", indx);
@@ -235,6 +252,9 @@ SEXP fastrank_(SEXP s_x) {
     R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
     // indx[i] holds the index of the value in s_x that belongs in position i,
     // e.g., indx[0] holds the position in s_x of the first value
+
+    /* Points to the return value, which is created below */
+    SEXP s_ranks = NULL;
 
     // Now do rank calculations with type-specific pointers and comparisons
     // note this uses ROV_SIZE_T for vector indexing and ROV_LENGTH for
@@ -265,9 +285,9 @@ SEXP fastrank_(SEXP s_x) {
 #undef __R_TCONV
 
 /* ties' rank is the minimum of their ranks */
-#define FR_ties_min(__loc__) \
+#define FR_ties_min(__RTYPE, __loc__) \
     { \
-    RTYPE rnk = (RTYPE)(ib + 1); \
+    __RTYPE rnk = (__RTYPE)(ib + 1); \
     if (DEBUG) Rprintf("min, ranks[%d .. %d] <- %f   " __loc__ "\n", ib, i - 1, rnk); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[j] = rnk; \
@@ -275,9 +295,9 @@ SEXP fastrank_(SEXP s_x) {
     }
 
 /* ties' rank is the maximum of their ranks */
-#define FR_ties_max(__loc__) \
+#define FR_ties_max(__RTYPE, __loc__) \
     { \
-    RTYPE rnk = (RTYPE)i; \
+    __RTYPE rnk = (__RTYPE)i; \
     if (DEBUG) Rprintf("max, ranks[%d .. %d] <- %f   " __loc__ "\n", ib, i - 1, rnk); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[j] = rnk; \
@@ -285,9 +305,9 @@ SEXP fastrank_(SEXP s_x) {
     }
 
 /* ties' rank is the average of their ranks */
-#define FR_ties_average(__loc__) \
+#define FR_ties_average(__RTYPE, __loc__) \
     { \
-    RTYPE rnk = (i - 1 + ib + 2) / 2.0; \
+    __RTYPE rnk = (i - 1 + ib + 2) / 2.0; \
     if (DEBUG) Rprintf("average, ranks[%d .. %d] <- %f   " __loc__ "\n", ib, i - 1, rnk); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[j] = rnk; \
@@ -295,18 +315,18 @@ SEXP fastrank_(SEXP s_x) {
     }
 
 /* ties' rank is consecutive on their order */
-#define FR_ties_first(__loc__) \
+#define FR_ties_first(__RTYPE, __loc__) \
     { \
     Rprintf("ties.method == 'first' only truly correct when the sort is stable"); \
     for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
-        RTYPE rnk = (RTYPE)(j + 1); \
+        __RTYPE rnk = (__RTYPE)(j + 1); \
         if (DEBUG) Rprintf("first, ranks[%d] <- %f  " __loc__ "\n", j, rnk); \
         ranks[j] = rnk; \
     } \
     }
 
 /* ties' rank is a random shuffling of their order */
-#define FR_ties_random(__loc__) \
+#define FR_ties_random(__RTYPE, __loc__) \
     { \
     ROV_SIZE_T tn = i - ib; \
     ROV_SIZE_T* t = (ROV_SIZE_T*) R_alloc(tn, sizeof(ROV_SIZE_T)); \
@@ -315,12 +335,12 @@ SEXP fastrank_(SEXP s_x) {
         t[j] = j; \
     for (j = ib; j < i - 1; ++j) { \
         ROV_SIZE_T k = (ROV_SIZE_T)(tn * unif_rand()); \
-        RTYPE rnk = (RTYPE)(t[k] + ib + 1); \
+        __RTYPE rnk = (__RTYPE)(t[k] + ib + 1); \
         if (DEBUG) Rprintf("random, rank[%d] <- %f  " __loc__ "\n", j, rnk); \
         ranks[j] = rnk; \
         t[k] = t[--tn]; \
     } \
-    RTYPE rnk = (RTYPE)(t[0] + ib + 1); \
+    __RTYPE rnk = (__RTYPE)(t[0] + ib + 1); \
     if (DEBUG) Rprintf("random, rank[%d] <- %f  " __loc__ "\n", j, rnk); \
     ranks[j] = rnk; \
     }
@@ -329,7 +349,7 @@ SEXP fastrank_(SEXP s_x) {
 
 #define FR_rank(__TIES__, __TYPE, __TCONV, __RTYPE, __R_RTYPE, __R_TCONV) \
     { \
-    SEXP s_ranks = PROTECT(allocVector(__R_RTYPE, n)); \
+    s_ranks = PROTECT(allocVector(__R_RTYPE, n)); \
     __RTYPE* ranks = __R_TCONV(s_ranks); \
     if (DEBUG) Rprintf("address of ranks = 0x%p\n", ranks); \
     __TYPE* x = __TCONV(s_x); \
@@ -341,7 +361,7 @@ SEXP fastrank_(SEXP s_x) {
         if (! EQUAL(XI(i), b)) { \
             if (DEBUG) Rprintf("XI(%d) != b\n", ib, b); \
             if (ib < i - 1) { \
-                __TIES__("MID") \
+                __TIES__(__RTYPE, "MID") \
             } else { \
                 if (DEBUG) \
                     Rprintf("ranks[%d] <- %f\n MID", ib, (__RTYPE)(ib + 1)); \
@@ -356,7 +376,7 @@ SEXP fastrank_(SEXP s_x) {
         if (DEBUG) Rprintf("ranks[%d] <- %f FIN\n", ib, (__RTYPE)(ib + 1)); \
         ranks[ib] = (__RTYPE)i; \
     } else { \
-        __TIES__("FIN") \
+        __TIES__(__RTYPE, "FIN") \
     } \
     }
 
@@ -376,16 +396,19 @@ SEXP fastrank_(SEXP s_x) {
             case TIES_FIRST:
                 FR_rank(FR_ties_first, TYPE, TCONV, int, INTSXP, INTEGER)
                 break;
-            case TIES_MIN:
-                FR_rank(FR_ties_min, TYPE, TCONV, int, INTSXP, INTEGER)
+                break;
+            case TIES_RANDOM:
+                GetRNGstate();
+                FR_rank(FR_ties_random, TYPE, TCONV, int, INTSXP, INTEGER)
+                PutRNGstate();
                 break;
             case TIES_MAX:
                 FR_rank(FR_ties_max, TYPE, TCONV, int, INTSXP, INTEGER)
                 break;
-            case TIES_RANDOM:
-                GetRNGState();
-                FR_rank(FR_ties_random, TYPE, TCONV, int, INTSXP, INTEGER)
-                PutRNGState();
+            case TIES_MIN:
+                FR_rank(FR_ties_min, TYPE, TCONV, int, INTSXP, INTEGER)
+            default:
+                error("unknown 'ties.method', should never be reached");
                 break;
             }
 #undef EQUAL
@@ -405,16 +428,19 @@ SEXP fastrank_(SEXP s_x) {
             case TIES_FIRST:
                 FR_rank(FR_ties_first, TYPE, TCONV, int, INTSXP, INTEGER)
                 break;
-            case TIES_MIN:
-                FR_rank(FR_ties_min, TYPE, TCONV, int, INTSXP, INTEGER)
+            case TIES_RANDOM:
+                GetRNGstate();
+                FR_rank(FR_ties_random, TYPE, TCONV, int, INTSXP, INTEGER)
+                PutRNGstate();
                 break;
             case TIES_MAX:
                 FR_rank(FR_ties_max, TYPE, TCONV, int, INTSXP, INTEGER)
                 break;
-            case TIES_RANDOM:
-                GetRNGState();
-                FR_rank(FR_ties_random, TYPE, TCONV, int, INTSXP, INTEGER)
-                PutRNGState();
+            case TIES_MIN:
+                FR_rank(FR_ties_min, TYPE, TCONV, int, INTSXP, INTEGER)
+                break;
+            default:
+                error("unknown 'ties.method', should never be reached");
                 break;
             }
 #undef EQUAL
@@ -434,16 +460,19 @@ SEXP fastrank_(SEXP s_x) {
             case TIES_FIRST:
                 FR_rank(FR_ties_first, TYPE, TCONV, int, INTSXP, INTEGER)
                 break;
-            case TIES_MIN:
-                FR_rank(FR_ties_min, TYPE, TCONV, int, INTSXP, INTEGER)
+            case TIES_RANDOM:
+                GetRNGstate();
+                FR_rank(FR_ties_random, TYPE, TCONV, int, INTSXP, INTEGER)
+                PutRNGstate();
                 break;
             case TIES_MAX:
                 FR_rank(FR_ties_max, TYPE, TCONV, int, INTSXP, INTEGER)
                 break;
-            case TIES_RANDOM:
-                GetRNGState();
-                FR_rank(FR_ties_random, TYPE, TCONV, int, INTSXP, INTEGER)
-                PutRNGState();
+            case TIES_MIN:
+                FR_rank(FR_ties_min, TYPE, TCONV, int, INTSXP, INTEGER)
+                break;
+            default:
+                error("unknown 'ties.method', should never be reached");
                 break;
             }
 #undef EQUAL
@@ -452,7 +481,7 @@ SEXP fastrank_(SEXP s_x) {
         }
         break;
     default:
-        error("'x' has incorrect structure (not a vector?...)");
+        error("'x' is not an integer, numeric or complex vector");
         break;
     }
 

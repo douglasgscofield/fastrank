@@ -109,8 +109,6 @@ NULL
 #                                        "min")) {
 # TODO: manage ties.method, how does the internal rank do it?
 fastrank <- function(x) {
-    if (is.character(x))
-        stop(deparse(substitute(x)), " must not be of type 'character'")
     .Call("fastrank_", x, PACKAGE = "fastrank")
 }
 
