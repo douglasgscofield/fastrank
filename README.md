@@ -84,7 +84,106 @@ Current results
 6. Is our sort stable?
 7. 
 
-### Latest results
+### Latest results, with general fastrank()
+
+```R
+> rank_new <- function (x) .Internal(rank(x, length(x), "min"))
+> microbenchmark(rank_new(x), fastrank(x, "min", 1L), fastrank(x, "min", 2L), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(x) 1.333 1.494 1.812441  1.555 1.641 6519.842 1e+05
+ fastrank(x, "min", 1L) 3.124 3.349 3.751827  3.452 3.585 4668.169 1e+05
+ fastrank(x, "min", 2L) 3.158 3.369 3.896483  3.473 3.606 7170.547 1e+05
+> rank_new <- function (x) .Internal(rank(x, length(x), "average"))
+> microbenchmark(rank_new(x), fastrank(x, "average", 1L), fastrank(x, "average", 2L), times=100000)
+Unit: microseconds
+                       expr   min    lq     mean median    uq      max neval
+                rank_new(x) 1.305 1.482 1.674075  1.550 1.642 5776.435 1e+05
+ fastrank(x, "average", 1L) 3.135 3.358 3.908632  3.461 3.595 7331.003 1e+05
+ fastrank(x, "average", 2L) 3.142 3.362 4.058442  3.466 3.600 5788.526 1e+05
+```
+
+The call overhead is fairly high, going through `.Internal(...)` seems to give
+a good gain.  If we simplify our call to `fastrank_(...)` we see a speedup.
+
+```R
+> rank_new <- function (x) .Internal(rank(x, length(x), "average"))
+> fr1 = function(x) .Call("fastrank_", x, "average", 1L)
+> fr2 = function(x) .Call("fastrank_", x, "average", 2L)
+> microbenchmark(rank_new(x), fr1(x), fr2(x), times=100000)
+Unit: microseconds
+        expr   min    lq     mean median    uq      max neval
+ rank_new(x) 1.304 1.435 1.666147  1.507 1.597 8247.283 1e+05
+      fr1(x) 2.638 2.809 3.489785  2.899 3.012 8499.078 1e+05
+      fr2(x) 2.649 2.815 3.411143  2.905 3.017 8643.985 1e+05
+> microbenchmark(rank_new(x), fr1(x), fr2(x), times=100000)
+Unit: microseconds
+        expr   min    lq     mean median    uq      max neval
+ rank_new(x) 1.310 1.429 1.880561  1.497 1.584 8671.646 1e+05
+      fr1(x) 2.646 2.807 3.375271  2.892 3.001 9493.157 1e+05
+      fr2(x) 2.650 2.812 3.205432  2.897 3.007 7841.215 1e+05
+
+```
+
+Does it make a difference if we use the function name directly, rather than quoted?  Typing the function name directly gets us the registration record?  No, no real difference.
+
+```R
+> fr1 = function(x) .Call(fastrank_, x, "average", 1L)
+> fr2 = function(x) .Call(fastrank_, x, "average", 2L)
+> microbenchmark(rank_new(x), fr1(x), fr2(x), times=100000)
+Unit: microseconds
+        expr   min    lq     mean median    uq      max neval
+ rank_new(x) 1.305 1.420 1.708923  1.486 1.576 7919.421 1e+05
+      fr1(x) 2.703 2.872 3.530667  2.958 3.076 8073.943 1e+05
+      fr2(x) 2.696 2.877 3.387444  2.962 3.079 8567.344 1e+05
+> microbenchmark(rank_new(x), fr1(x), fr2(x), times=100000)
+Unit: microseconds
+        expr   min    lq     mean median    uq      max neval
+ rank_new(x) 1.298 1.426 1.982873  1.504 1.595 8776.356 1e+05
+      fr1(x) 2.700 2.884 3.572792  2.978 3.099 8051.271 1e+05
+      fr2(x) 2.697 2.888 3.167277  2.981 3.100 7277.705 1e+05
+```
+
+Still need to find some time... also the 2nd method of finding ties is faster.  There is also an effect of providing additional arguments through the R interface.  Better to use `.Call` directly.
+
+```R
+> rank_new
+function (x) .Internal(rank(x, length(x), "average"))
+> fr = function(x) .Call("fastrank_", x, "average")
+> microbenchmark(rank_new(x), fastrank(x,"average"), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(x) 1.315 1.513 1.883313  1.656 1.755 4286.676 1e+05
+ fastrank(x, "average") 5.323 5.717 6.535513  5.876 6.084 5310.369 1e+05
+> microbenchmark(rank_new(x), fastrank(x), times=100000)
+Unit: microseconds
+        expr   min    lq     mean median    uq       max neval
+ rank_new(x) 1.307 1.512 2.295412  1.653 1.753 36058.038 1e+05
+ fastrank(x) 5.299 5.673 6.462977  5.828 6.035  4674.833 1e+05
+> microbenchmark(rank_new(x), fr(x), times=100000)
+Unit: microseconds
+        expr   min    lq     mean median    uq      max neval
+ rank_new(x) 1.303 1.415 1.792045  1.484 1.580 9280.130 1e+05
+       fr(x) 2.645 2.810 3.279320  2.890 2.997 7785.971 1e+05
+```
+
+And avoiding the R interface entirely gives a touch more.
+
+```R
+> microbenchmark(.Internal(rank(x, length(x), "average")), .Call("fastrank_", x, "average"), times=100000)
+Unit: microseconds
+                                     expr   min    lq     mean median    uq      max neval
+ .Internal(rank(x, length(x), "average")) 1.038 1.103 1.279894  1.139 1.203 8783.207 1e+05
+         .Call("fastrank_", x, "average") 2.367 2.479 3.103489  2.548 2.625 9163.957 1e+05
+> microbenchmark(.Internal(rank(x, length(x), "average")), .Call("fastrank_", x, "average"), times=100000)
+Unit: microseconds
+                                     expr   min    lq     mean median    uq      max neval
+ .Internal(rank(x, length(x), "average")) 1.032 1.126 1.430717  1.167 1.238 10472.65 1e+05
+         .Call("fastrank_", x, "average") 2.361 2.528 3.110999  2.604 2.693 10940.42 1e+05
+
+```
+
+### Initial results with direct routine
 
 After following the advice of <http://ftp.sunet.se/pub/lang/CRAN/doc/manuals/r-devel/R-exts.html#Registering-native-routines> and registering my C routine with R to reduce symbol search times, we are getting much more comparable benchmark results:
 

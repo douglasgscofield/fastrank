@@ -86,13 +86,16 @@ NULL
 #' are not part of the R API.  Please use \code{\link{rank}} from base R
 #' to rank character vectors.
 #'       
-# @param ties.method  Method for resolving rank ties in \code{x}.  Provides
-#                     all available in \code{rank}.  This does **not** provide
-#                     method \code{"random"}.
+#' @param x            Vector to calculate ranks for
+#' @param ties.method  Method for resolving rank ties in \code{x}, all in
+#' \code{\link{rank}} are available
+#' @param find         Method for finding \code{ties.method}, either 1 or 2
 #'
-#' @return An integer vector of ranks of values in \code{x}, with length
+#' @return A vector of ranks of values in \code{x}, with length
 #' the same as \code{length(x)}.  Ranks of tied values are handled according
-#' to \code{ties.method}, see \code{\link{rank}}.
+#' to \code{ties.method}, see \code{\link{rank}}.  When \code{ties.method} is
+#' \code{"average"}, a numeric vector is returned, otherwise an integer
+#' vector is returned.
 #'
 #' @seealso \code{\link{rank}}
 #'
@@ -106,10 +109,11 @@ NULL
 #' @export fastrank
 #'
 #fastrank <- function(x, ties.method = c("average", "first", "random", "max",
-#                                        "min")) {
+#                                        "min"), first) {
 # TODO: manage ties.method, how does the internal rank do it?
-fastrank <- function(x) {
-    .Call("fastrank_", x, PACKAGE = "fastrank")
+fastrank <- function(x, ties.method = "average") {
+    #cat(x, "\n");
+    .Call("fastrank_", x, ties.method)
 }
 
 
