@@ -153,11 +153,13 @@ static void fr_quicksort_double_i_ (double * const a,
  
 
 
+/*
 void fr_dummy(void) {
     double a = 1.0; MY_SIZE_T i = 0, n = 1;
     fr_quicksort_double_ai_(&a, &i, n);
     fr_quicksort_double_i_(&a, &i, n);
 }
+*/
 
 // quick_sort code modified from
 // http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to return a vector
