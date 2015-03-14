@@ -1,8 +1,14 @@
 TODO
 ----
 
+* Learn how `.Internal` passes arguments and results
+* Benchmark `.C` vs. `.Call`, and find out others' results there
+* Benchmark `.Call("fastrank_", x, ties)` vs. `.Call("fastrank_", x, length(x), ties)`, is it faster to get the length or to extract it internally?
+* Is it faster to byte-compile the R wrapper?
+* Restore and debug complex vector support in `fastrank`
+* Is it OK to do the shortcut evaluation of `ties.method`?
 * Proper makefile for compiling C routines, look into `Makevars` and `Makevars.win` (mentioned in <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-C_002b_002b11-code>)
-* **Still sorting the passed vector**, need to not do that
+* In `fastrank_num_avg`, **still sorting the passed vector**, need to not do that
 * Other C interfaces: how to name these?
   * fastrank, general (but no characters), uses `R_orderVector()`
   * fastrank_numeric_first
