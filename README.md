@@ -118,7 +118,7 @@ The implementation alternatives I am considering are:
 
 ### Initial results with `fastrank_numeric_average`
 
-Well my initial implementation using my own quicksort and restricting the interfac to a specific input type and specific ties meothd is complete and the first benchmark results are in. Bummer, it is not yet faster than calling `.Internal(rank(...))`.
+Well my initial implementation using my own quicksort and restricting the interface to a specific input type and specific ties method is complete and the first benchmark results are in. Bummer, it is not yet faster than calling `.Internal(rank(...))`.
 
 * It seems in relative terms that `fastrank` is faster than `.Internal(rank())` (or at least slows down less) when there are ties in the data, see contrast between results with `xx` which can have ties, and `yy` which essentially cannot.
 * Note the error by failing to make `xx` be numeric
@@ -191,7 +191,9 @@ However I still cannot call the C routine directly within R, `.Call` is always r
 
 ### General `fastrank`
 
-Now I've finished a more general `fastrank(x, ties.method)`, that can rank logical, integer, numeric, and complex (not quite yet) vectors and can handle any of the ties methods.  My first question was: is it faster to do a single-character shortcut evaluation of the `ties.method` value, or use `strcmp` to find it?  The third argument was `1L` for the shortcut and `2L` for `strcmp`.  It is somewhere in the neighbourhood of 0.5-1% faster with the shortcut method.
+Now I've finished a preliminary version of a more general `fastrank(x, ties.method)` that can rank logical, integer, numeric, and (soon) complex vectors and can handle any of the ties methods.
+
+My first question was: is it faster to do a single-character shortcut evaluation of the `ties.method` value, or use `strcmp` to find it?  I added a third argument to choose between methods, `1L` for the shortcut and `2L` for `strcmp`.  The shortcut method is 0.5-1% faster.
 
 ```R
 > rank_new <- function (x) .Internal(rank(x, length(x), "min"))
@@ -282,9 +284,7 @@ Unit: microseconds
              fr_name(x) 2.697 2.952 3.427632  3.076 3.204  5123.834 1e+05
 ```
 
-We can also see this if we avoid the R interface entirely and benchmark `.Internal` and `.Call` calls directly.
-
-And avoiding the R interface entirely gives a touch more, and doing so shows us clearly the difference between giving the bare name of the C function and the character string of the name.
+Avoiding the R interface entirely gives us even more performance.  This also makes more clear the difference between the ways of specifiying the function to `.Call`.
 
 ```R
 > microbenchmark(.Internal(rank(x, length(x), "average")), .Call("fastrank_", x, "average"), .Call(fastrank_, x, "average"), times=100000)
@@ -301,12 +301,13 @@ Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 ## Remaining performance questions
 
-Of course I want to squeeze as much time as I can, so need to explore an updated `fastrank_numeric_average` since the direct entires *should* always be fastest, but there are a few more points to explore. 
+Of course I want to squeeze as much time as I can, so need to explore an updated `fastrank_num_avg` since the direct entries *should* always be fastest, but there are a few more general points to explore. 
 
 * Is there  a difference in time between using the older `.C` interface and `.Call`?
 * Is it faster to compute length of `x` internally, as I do now, or accept it as a passed argument like `.Internal(rank(...))`?
 * In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
 * Does it make a difference to byte-compile the R wrapper?
+
 
 
 

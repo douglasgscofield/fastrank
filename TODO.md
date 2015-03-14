@@ -25,6 +25,14 @@ TODO
 * What are the errors once sees with incorrect data?
 * Update all these experiences over in the **R-package-utilities** repository.
 
+### Potential CRAN issues
+I don't know what sorts of things I might run into with submitting this to CRAN, so I would like to anticipate them as much as possible.  Some of the TODO and Completed address this concern but here I will collect more specific links and thoughts.
+
+* Here mentions a mod to a Makevars requested by CRAN: https://github.com/eddelbuettel/rcppgsl/commit/d6cb0261e2736e7ddad1323c13b9a627d2507c89#diff-c5776ec1a71fecf2707202dd685bec29
+* How can I check on Solaris?
+* How can I check on Windows?
+
+
 Completed
 ---------
 
