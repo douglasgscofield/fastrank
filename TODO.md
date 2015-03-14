@@ -1,6 +1,7 @@
 TODO
 ----
 
+* Benchmark sort routines by creating `fastrank_num_avg` with extra argument choosing among sort methods, and explore 2d space of vector length and relative ties occurrence.  I envision vector length on X and ties fraction on Y, each benchmark result being for 1e6 runs, and each point being a circle coloured by sort method and with diameter related to the difference between mean and median times for that run.
 * Learn how `.Internal` passes arguments and results
 * Benchmark `.C` vs. `.Call`, and find out others' results there
 * Benchmark `.Call("fastrank_", x, ties)` vs. `.Call("fastrank_", x, length(x), ties)`, is it faster to get the length or to extract it internally?
