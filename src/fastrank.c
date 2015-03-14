@@ -3,9 +3,7 @@
 #include <R_ext/Rdynload.h>
 
 /* include inline debug statements? */
-#define DEBUG 0
-
-#undef use_R_sort
+#define DEBUG 1
 
 #ifdef LONG_VECTOR_SUPPORT
 #  define MY_SIZE_T R_xlen_t
@@ -44,115 +42,144 @@ void R_init_fastrank(DllInfo *info) {
     R_registerRoutines(info, cMethods, callMethods, NULL, NULL);
 }
 
-// internal routines
-static void fastrank_rquicksort_I_(double a[], MY_SIZE_T indx[], const MY_SIZE_T n);
+/* quicksort double a, modifying a and indices i */
+static void fr_quicksort_double_ai_(double *       a, MY_SIZE_T indx[], const MY_SIZE_T n);
+/* quicksort double a, only indices i */
+static void fr_quicksort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
 
-
-// Fast calculation of ranks of a double vector, assigning average rank to ties
-//
-// This function quickly calculates the ranks of a double vector while assigning
-// average rank to ties, and does absolutely no error checking on its arguments.
-// If you call it incorrectly, it will probably crash R.
-// 
-// @param x            a vector of integers, there must be no NA values.
-// 
-// @return a vector the same length as \code{x} with double ranks of the 
-//         corresponding elements in \code{x}.
-//
-// @seealso \code{\link{fastrank}}
-// 
-// @keywords internal
-// 
-// @export fastrank_num_avg_
-// 
+/* Fast calculation of ranks of a double vector, assigning average rank to ties
+ *
+ * This function quickly calculates the ranks of a double vector while assigning
+ * average rank to ties, and does absolutely no error checking on its arguments.
+ * If you call it incorrectly, it will probably crash R.
+ * 
+ * @param x            a vector of integers, there must be no NA values.
+ * 
+ * @return a vector the same length as \code{x} with double ranks of the 
+ *         corresponding elements in \code{x}.
+ *
+ * @seealso \code{\link{fastrank}}
+ * 
+ * @keywords internal
+ * 
+ * @export fastrank_num_avg_
+ */ 
 SEXP fastrank_num_avg_(SEXP s_x) {
     MY_SIZE_T n = MY_LENGTH(s_x);
+    double *x = REAL(s_x);
+    if (DEBUG) {
+        Rprintf("    x:  ");
+        for (int i = 0; i < n; ++i) Rprintf("%.3f ", x[i]); 
+        Rprintf("\n");
+    }
 
-    SEXP s_result = PROTECT(allocVector(REALSXP, n)); // doubles if "average"
-    double *x = REAL(s_x), *result = REAL(s_result);
+    /* double because "average" */
+    SEXP s_ranks = PROTECT(allocVector(REALSXP, n));
+    double *ranks = REAL(s_ranks);
     MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
-#ifdef use_R_sort
-    R_qsort_I(x, indx, (MY_SIZE_T)1, (MY_SIZE_T)n);
-#else
-    for (MY_SIZE_T i = 0; i < n; ++i)  // pre-fill indx with index from 0..n-1
+    /* pre-fill indx with index from 0..n-1 */
+    for (MY_SIZE_T i = 0; i < n; ++i)
         indx[i] = i;
-    fastrank_rquicksort_I_(x, indx, n);
-#endif
+    fr_quicksort_double_i_(x, indx, n);
+    if (DEBUG) {
+        Rprintf(" indx:   ");
+        for (int i = 0; i < n; ++i) Rprintf("%d    ", indx[i]); 
+        Rprintf("\n");
+    }
 
-    // Note: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
-
-    // rsort_with_index(s_x, indx, n);
-
-    double *ranks = (double *) R_alloc(n, sizeof(double));
-    double b = x[0];
     MY_SIZE_T ib = 0;
+    double b = x[indx[0]];
     MY_SIZE_T i;
     for (i = 1; i < n; ++i) {
-        if (x[i] != b) { // consecutive numbers differ
+        if (x[indx[i]] != b) { /* consecutive numbers differ */
             if (ib < i - 1) {
-                // at least one previous tie, b=i-1, a=ib
-                // sum of ranks = (b + a) * (b - a + 1) / 2;
-                // avg_rank = sum / (b - a + 1);
-                // simple_avg_rank = (b + a) / 2.0;
-                // add 2 to compensate for index from 0
+                /* at least one previous tie, b=i-1, a=ib
+                 * sum of ranks = (b + a) * (b - a + 1) / 2;
+                 * avg_rank = sum / (b - a + 1);
+                 * simplified_avg_rank = (b + a) / 2.0;
+                 * add 2 to compensate for index from 0
+                 */
                 double rnk = (i - 1 + ib + 2) / 2.0;
                 for (MY_SIZE_T j = ib; j <= i - 1; ++j)
-                    ranks[j] = rnk;
+                    ranks[indx[j]] = rnk;
             } else {
-                ranks[ib] = (double)(ib + 1);
+                ranks[indx[ib]] = (double)(ib + 1);
             }
-            b = x[i];
+            b = x[indx[i]];
             ib = i;
         }
     }
-    // now check leftovers
-    if (ib == i - 1)  // last two were unique
-        ranks[ib] = (double)i;
-    else {  // ended with ties
+    /* now check leftovers */
+    if (ib == i - 1)  /* last two were unique */
+        ranks[indx[ib]] = (double)i;
+    else {  /* ended with ties */
         double rnk = (i - 1 + ib + 2) / 2.0;
         for (MY_SIZE_T j = ib; j <= i - 1; ++j)
-            ranks[j] = rnk;
+            ranks[indx[j]] = rnk;
     }
-    //Rprintf("ranks of sorted vector:\n");
-    //for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); Rprintf("\n");
-
-    // reorder ranks into the answer
-    for (MY_SIZE_T i = 0; i < n; ++i)
-        result[indx[i]] = ranks[i];
-    //Rprintf("reorder ranks into original order of vector:\n");
-    //for (int i = 0; i < n; ++i) Rprintf("%.1f   ", result[i]); Rprintf("\n");
+    if (DEBUG) {
+        Rprintf("ranks:  ");
+        for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); 
+        Rprintf("\n");
+    }
 
     UNPROTECT(1);
-    return s_result;
+    return s_ranks;
 }
 
 
-//
-// quick_sort code modified from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort
-// to return a vector of previous indices
-static void fastrank_rquicksort_I_ (double a[],
+// quick_sort code modified from
+// http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to only modify a
+// vector of indices.  the vector must already be filled with 0..n-1
+
+static void fr_quicksort_double_i_ (double * const a,
                                     MY_SIZE_T indx[],
                                     const MY_SIZE_T n) {
+    double p;
+    MY_SIZE_T i, j, it;
+    if (n < 2) return;
+    p = a[indx[n / 2]];
+    for (i = 0, j = n - 1; ; i++, j--) {
+        while (a[indx[i]] < p) i++;
+        while (p < a[indx[j]]) j--;
+        if (i >= j) break;
+        // swap indices
+        it = indx[i]; indx[i] = indx[j]; indx[j] = it;
+    }
+    fr_quicksort_double_i_(a, indx,     i    );
+    fr_quicksort_double_i_(a, indx + i, n - i);
+}
+ 
+
+
+void fr_dummy(void) {
+    double a = 1.0; MY_SIZE_T i = 0, n = 1;
+    fr_quicksort_double_ai_(&a, &i, n);
+    fr_quicksort_double_i_(&a, &i, n);
+}
+
+// quick_sort code modified from
+// http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to return a vector
+// of sorted values and of previous indices
+
+static void fr_quicksort_double_ai_ (double    a[],
+                                     MY_SIZE_T indx[],
+                                     const MY_SIZE_T n) {
     double p, t;
     MY_SIZE_T i, j, it;
-    if (n < 2)
-        return;
+    if (n < 2) return;
     p = a[n / 2];
     for (i = 0, j = n - 1; ; i++, j--) {
-        while (a[i] < p)
-            i++;
-        while (p < a[j])
-            j--;
-        if (i >= j)
-            break;
+        while (a[i] < p) i++;
+        while (p < a[j]) j--;
+        if (i >= j) break;
         // swap values, and swap indices
-        t = a[i];     it = indx[i];
-        a[i] = a[j];  indx[i] = indx[j];
-        a[j] = t;     indx[j] = it;
+         t = a[i];       a[i] = a[j];       a[j] = t;     
+        it = indx[i]; indx[i] = indx[j]; indx[j] = it;
     }
-    fastrank_rquicksort_I_(a, indx, i);
-    fastrank_rquicksort_I_(a + i, indx + i, n - i);
+    fr_quicksort_double_ai_(a, indx, i);
+    fr_quicksort_double_ai_(a + i, indx + i, n - i);
 }
  
 
@@ -362,8 +389,8 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm) {
     __RTYPE* ranks = __R_TCONV(s_ranks); \
     if (DEBUG) Rprintf("address of ranks = 0x%p\n", ranks); \
     __TYPE* x = __TCONV(s_x); \
-    __TYPE b = XI(0); \
     ROV_SIZE_T ib = 0; \
+    __TYPE b = XI(0); \
     ROV_SIZE_T i; \
     if (DEBUG) Rprintf("ib = %d\n", ib); \
     for (i = 1; i < n; ++i) { \
