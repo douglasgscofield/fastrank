@@ -8,7 +8,7 @@ The motivation for this comes from my development of the `nestedRanksTest`
 package.  A standard run with the default 10,000 bootstrap iterations takes
 a few seconds to complete on a test data set.
 
-~~~~
+```R
 > library(nestedRanksTest)
 > data(woodpecker_multiyear)
 > adat <- subset(woodpecker_multiyear, Species == "agrifolia")
@@ -23,14 +23,16 @@ a few seconds to complete on a test data set.
 > system.time(with(adat, nestedRanksTest(y = Distance, x = Year, groups = Granary)))
    user  system elapsed 
   5.252   0.067   5.318 
-~~~~
+```
 
 Profiling with `library(lineprof)` revealed that the bottleneck here is in the
 utility function `nestedRanksTest_Z`, specifically in the calculation of ranks
 via the base R function `rank`.  A stripped-down `rank_new` is 8-9&times;
-faster than the default rank for a vector of 100 values:
+faster than the default rank for a vector of 100 values: For 1000-value vectors
+the speedup is more modest, about 2&times;, and for 10,000-value vectors the
+speedup is only in the neighbourhood of 20-30%:
 
-~~~~
+```R
 > library(microbenchmark)
 > rank_new <- function (x) .Internal(rank(x, length(x), "average"))
 > yy <- rnorm(100)
@@ -39,12 +41,9 @@ Unit: microseconds
          expr    min     lq      mean median      uq       max neval
      rank(yy) 29.148 31.945 36.931556 32.678 33.5165 57192.350 1e+05
  rank_new(yy)  3.755  4.300  4.789952  4.542  4.7290  6784.741 1e+05
-~~~~
+```
 
-For 1000-value vectors the speedup is more modest, about 2&times;, and for
-10,000-value vectors the speedup is only in the neighbourhood of 20-30%:
-
-~~~~
+```R
 > yyy <- rnorm(1000)
 > microbenchmark(rank(yyy), rank_new(yyy), times=100000)
 Unit: microseconds
@@ -57,7 +56,7 @@ Unit: microseconds
           expr      min        lq    mean   median        uq      max neval
      rank(yyy) 1238.485 1263.3515 1361.22 1279.580 1303.5785 6436.039  1000
  rank_new(yyy)  955.013  964.9215 1002.81  967.849  992.6315 6072.219  1000
-~~~~
+```
 
 ## `fastrank` API
 
