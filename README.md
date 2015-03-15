@@ -351,7 +351,103 @@ Unit: microseconds
  fastrank(yyy, sort = 2L)  771.286  787.1900  838.3540  802.7980  822.3890  3434.097  1000
 ```
 
-Now to add R's shellsort.
+Now to add shellsort, with three implementations of gap distances, following the Wikipedia page for shellsort: Ciura (`3L`), Sedgwick (`4L`, R uses this), and Tokuda (`5L`).  This is in addition to quicksort (`2L`).
+
+```R
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), times=100000)
+Unit: nanoseconds
+                   expr   min    lq    mean median    uq      max neval
+                rank(y) 22125 24859 27353.3  25544 26422  3011293 1e+05
+            rank_new(y)   715  1154  1404.9   1293  1462   980087 1e+05
+ fastrank(y, sort = 2L)  3341  3940  4832.4   4289  5027  1054206 1e+05
+ fastrank(y, sort = 3L)  3285  3909  4793.3   4254  5005  1336451 1e+05
+ fastrank(y, sort = 4L)  3283  3905  5134.4   4260  5048 34984009 1e+05
+ fastrank(y, sort = 5L)  3321  3904  4748.3   4255  5005  1184770 1e+05
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy, sort=2L), fastrank(yy, sort=3L), fastrank(yy, sort=4L), fastrank(yy, sort=5L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean median      uq     max neval
+                rank(yy) 27.129 30.446 36.6337 31.249 32.2760 37390.8 1e+05
+            rank_new(yy)  2.738  3.302  3.6803  3.468  3.6480  3886.2 1e+05
+ fastrank(yy, sort = 2L)  4.877  5.684  7.1287  6.048  7.1675  4560.8 1e+05
+ fastrank(yy, sort = 3L)  4.825  5.608  6.8699  5.963  7.0120  3886.8 1e+05
+ fastrank(yy, sort = 4L)  4.761  5.589  7.2594  5.940  6.9760  6390.8 1e+05
+ fastrank(yy, sort = 5L)  4.767  5.592  7.3154  5.948  6.9990  6705.2 1e+05
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=2L), fastrank(yyy, sort=3L), fastrank(yyy, sort=4L), fastrank(yyy, sort=5L), times=10000)
+Unit: microseconds
+                     expr     min      lq    mean  median      uq     max neval
+                rank(yyy) 1303.76 1357.96 1493.97 1381.67 1425.34  7939.7 10000
+            rank_new(yyy) 1021.53 1051.86 1132.73 1068.39 1092.25 38452.1 10000
+ fastrank(yyy, sort = 2L)  768.36  796.68  862.12  815.01  836.12  6217.7 10000
+ fastrank(yyy, sort = 3L) 1053.28 1085.09 1159.29 1100.95 1125.74 39565.2 10000
+ fastrank(yyy, sort = 4L)  961.48  990.81 1064.55 1007.32 1030.55  7599.5 10000
+ fastrank(yyy, sort = 5L) 1064.45 1096.13 1162.95 1111.71 1137.29  7471.9 10000
+```
+I'll do a recreation of `y`, `yy` and `yyy` and see if it changes:
+```R
+> yyy = as.double(sample(10000, 10000, replace=TRUE))
+> yy = as.double(sample(100, 100, replace=TRUE))
+> y = as.double(sample(10, 10, replace=TRUE))
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), times=100000)
+Unit: nanoseconds
+                   expr   min    lq    mean median      uq      max neval
+                rank(y) 21959 24804 27706.5  25512 26426.0 36181742 1e+05
+            rank_new(y)   718  1156  1398.0   1294  1459.0  1089264 1e+05
+ fastrank(y, sort = 2L)  3314  3931  4831.2   4281  5062.5  3505259 1e+05
+ fastrank(y, sort = 3L)  3281  3909  4723.3   4256  5009.0  1023524 1e+05
+ fastrank(y, sort = 4L)  3279  3900  4797.8   4254  5008.0  1874497 1e+05
+ fastrank(y, sort = 5L)  3314  3914  5214.9   4266  5064.0 37951614 1e+05
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy, sort=2L), fastrank(yy, sort=3L), fastrank(yy, sort=4L), fastrank(yy, sort=5L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean median      uq     max neval
+                rank(yy) 27.194 30.419 36.6001 31.238 32.3960  6531.8 1e+05
+            rank_new(yy)  2.817  3.381  3.8633  3.548  3.7330  4071.3 1e+05
+ fastrank(yy, sort = 2L)  5.053  5.882  7.5902  6.248  7.4710  4168.5 1e+05
+ fastrank(yy, sort = 3L)  4.848  5.713  7.2580  6.082  7.2660  4610.4 1e+05
+ fastrank(yy, sort = 4L)  4.778  5.664  7.6421  6.021  7.1930 37804.2 1e+05
+ fastrank(yy, sort = 5L)  4.887  5.799  7.2520  6.165  7.3485  4159.7 1e+05
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=2L), fastrank(yyy, sort=3L), fastrank(yyy, sort=4L), fastrank(yyy, sort=5L), times=1000)
+Unit: microseconds
+                     expr     min      lq    mean  median      uq    max neval
+                rank(yyy) 1308.30 1352.39 1487.16 1377.26 1417.61 7832.1  1000
+            rank_new(yyy) 1020.99 1048.81 1103.38 1064.71 1087.65 1845.5  1000
+ fastrank(yyy, sort = 2L)  753.90  775.76  847.48  795.55  816.05 6842.6  1000
+ fastrank(yyy, sort = 3L) 1055.15 1087.10 1163.28 1103.29 1128.67 7432.4  1000
+ fastrank(yyy, sort = 4L)  964.95  985.61 1070.32 1006.85 1033.01 6733.0  1000
+ fastrank(yyy, sort = 5L) 1071.72 1097.27 1170.60 1117.76 1142.90 6980.9  1000
+```
+and without repeats:
+```R
+> y = as.double(sample(10, 10, replace=FALSE))
+> > yy = as.double(sample(100, 100, replace=FALSE))
+> > yyy = as.double(sample(10000, 10000, replace=FALSE))
+> > microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), times=100000)
+Unit: nanoseconds
+                   expr   min    lq    mean median    uq      max neval
+                rank(y) 21820 24971 27910.8  25721 26751  3601799 1e+05
+            rank_new(y)   712  1161  1427.0   1307  1484  2661588 1e+05
+ fastrank(y, sort = 2L)  3291  3945  5200.1   4307  5336 34690966 1e+05
+ fastrank(y, sort = 3L)  3307  3910  4852.6   4269  5291  2957495 1e+05
+ fastrank(y, sort = 4L)  3298  3911  4851.2   4275  5307  1066437 1e+05
+ fastrank(y, sort = 5L)  3272  3913  4846.1   4272  5293  1001901 1e+05
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy, sort=2L), fastrank(yy, sort=3L), fastrank(yy, sort=4L), fastrank(yy, sort=5L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean median      uq     max neval
+                rank(yy) 27.340 30.560 37.4109 31.412 32.6195 40227.8 1e+05
+            rank_new(yy)  2.880  3.458  4.1874  3.628  3.8210  4551.8 1e+05
+ fastrank(yy, sort = 2L)  4.813  5.551  7.2815  5.934  7.2020  6273.1 1e+05
+ fastrank(yy, sort = 3L)  4.719  5.531  6.9593  5.903  7.1350  4583.1 1e+05
+ fastrank(yy, sort = 4L)  4.565  5.433  7.0380  5.806  7.0395  4582.9 1e+05
+ fastrank(yy, sort = 5L)  4.687  5.511  7.0318  5.886  7.1360  4414.6 1e+05
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=2L), fastrank(yyy, sort=3L), fastrank(yyy, sort=4L), fastrank(yyy, sort=5L), times=1000)
+Unit: microseconds
+                     expr     min      lq    mean  median      uq    max neval
+                rank(yyy) 1241.12 1286.06 1432.83 1310.03 1350.22 7985.5  1000
+            rank_new(yyy)  955.01  975.60 1047.65  993.63 1016.59 6012.3  1000
+ fastrank(yyy, sort = 2L)  741.24  763.97  828.17  779.49  798.70 6503.4  1000
+ fastrank(yyy, sort = 3L) 1025.60 1055.85 1126.23 1071.90 1098.06 7014.3  1000
+ fastrank(yyy, sort = 4L)  930.95  955.53 1015.77  973.68  995.82 6791.8  1000
+ fastrank(yyy, sort = 5L) 1042.63 1070.03 1140.68 1087.28 1112.41 6823.2  1000
+```
 
 
 

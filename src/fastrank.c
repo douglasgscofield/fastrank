@@ -34,7 +34,12 @@ void R_init_fastrank(DllInfo *info) {
     R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 }
 
+static void fr_shellsort_c_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+static void fr_shellsort_s_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+static void fr_shellsort_t_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 /* quicksort double a, only indices i */
+static void fr_shellsort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n,
+                                    const MY_SIZE_T * the_gaps, const int N_GAPS);
 static void fr_quicksort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
 
@@ -148,18 +153,18 @@ static void fr_quicksort_double_i_ (const double * a,
  * suggested at the above Wikipedia page.
 
    sedgwick_gap <- function(k) {
-       if (k == 1) return(0)
+       if (k == 1) return(1)
        k <- k - 1
-       as.integer(4^k + (3 * 2^(k - 1)) + 1)
+       return(4^k + (3 * 2^(k - 1)) + 1)
    }
-   tokuda_gap <- function(k) as.integer(ceiling((9^k - 4^k)/(5 * 4^(k-1))))
+   tokuda_gap <- function(k) ceiling((9^k - 4^k)/(5 * 4^(k-1)))
    ciura_gap <- function(k) {
        g <- c(1L, 4L, 10L, 23L, 57L, 132L, 301L, 701L)
        max_g <- length(g)
        if (k > max_g) {
            h <- g[max_g]
            while (k > max_g) {
-               h <- as.integer(floor(h * 2.25))
+               h <- floor(h * 2.25)
                k <- k - 1
            }
            return(h)
@@ -168,37 +173,86 @@ static void fr_quicksort_double_i_ (const double * a,
    }
  */
 #ifdef LONG_VECTOR_SUPPORT
-#define N_GAPS 20
+   /* R's Sedgwick gaps go up to between 2^40 and 2^41, 
+    * use this criteria for the others */
+#  define N_GAPS_SEDGWICK 21
+#  define N_GAPS_TOKUDA   35
+#  define N_GAPS_CIURA    35
 #else
-#define N_GAPS 16
+   /* Here, gaps up to just under 2^31 - 1, MAXINT */
+#  define N_GAPS_SEDGWICK 17
+#  define N_GAPS_TOKUDA   27
+#  define N_GAPS_CIURA    26
 #endif
-/* Using Tokuda gaps here */
-static const MY_SIZE_T shell_gaps [N_GAPS + 1] = {
+static const MY_SIZE_T ciura_gaps [N_GAPS_CIURA] = {
 #ifdef LONG_VECTOR_SUPPORT
-    19903198L,  8845866L,  3931496L,  1747331L,
+    2262162137148L, 1005405394288L, 446846841906L, 198598596403L,
+    88266042846L,   39229352376L,   17435267723L,  7749007877L,
+    3444003501L,
 #endif
-    776591L, 345152L, 153401L, 68178L, 30301L,
-    13467L, 5985L, 2660L, 1182L, 525L,
-    233L, 103L, 46L, 20L, 9L,
-    4L, 1L
+    1530668223, 680296988, 302354217, 134379652,  59724290,
+    26544129,   11797391,  5243285,   2330349,    1035711,
+    460316,     204585,    90927,     40412,      17961,
+    7983,       3548,      1577,      701,        301,
+    132,        57,        23,        10,         4,
+    1
 };
-static void fr_shellsort_double_i_ (double * const a,
+static const MY_SIZE_T sedgwick_gaps [N_GAPS_SEDGWICK] = {
+#ifdef LONG_VECTOR_SUPPORT
+    1099513200641L, 274878693377L, 68719869953L, 17180065793L, 4295065601L,
+#endif
+    1073790977, 268460033, 67121153, 16783361, 4197377, 
+    1050113,    262913,    65921,    16577,    4193,
+    1073,       281,       77,       23,       8,
+    1
+};
+static const MY_SIZE_T tokuda_gaps [N_GAPS_TOKUDA] = {
+#ifdef LONG_VECTOR_SUPPORT
+    1696204147864L, 753868510162L, 335052671183L, 148912298303L, 66183243690L,
+    29414774973L, 13073233321L, 5810325920L, 2582367076L,
+#endif
+    1147718700, 510097200, 226709866, 100759940, 44782196,
+    19903198,   8845866,   3931496,   1747331,   776591,
+    345152,     153401,    68178,     30301,     13467,
+    5985,       2660,      1182,      525,       233,
+    103,        46,        20,        9,         4,
+    1
+};
+
+static void fr_shellsort_c_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
+    fr_shellsort_double_i_(a, indx, n, &ciura_gaps[0], N_GAPS_CIURA);
+}
+static void fr_shellsort_s_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
+    fr_shellsort_double_i_(a, indx, n, &sedgwick_gaps[0], N_GAPS_SEDGWICK);
+}
+static void fr_shellsort_t_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
+    fr_shellsort_double_i_(a, indx, n, &tokuda_gaps[0], N_GAPS_TOKUDA);
+}
+
+static void fr_shellsort_double_i_ (const double * a,
                                     MY_SIZE_T indx[],
-                                    const MY_SIZE_T n) {
-    MY_SIZE_T i, j, ig, gap;
-    double t;
-    for (ig = 0; shell_gaps[ig] >= n; ++ig);
-    for (; ig <= N_GAPS; ++ig) {
-        gap = shell_gaps[ig];
+                                    const MY_SIZE_T n,
+                                    const MY_SIZE_T * the_gaps,
+                                    const int N_GAPS) {
+    int ig;
+    MY_SIZE_T i, it, j, gap;
+    for (ig = 0; the_gaps[ig] >= n; ++ig);
+    for (; ig < N_GAPS; ++ig) {
+        gap = the_gaps[ig];
+        if (DEBUG) {
+            printf("ig = %d    gap = %td   n = %td\n", ig, gap, n);
+            for (int q = 0; q < n; ++q) printf("%td   ", indx[q]); printf("\n");
+        }
         for (i = gap; i < n; ++i) {
-            t = a[i];
-            for (j = i; j >= gap && a[j - gap] > t; j -= gap) {
-                a[j] = a[j - gap];
+            it = indx[i];
+            for (j = i; j >= gap && a[indx[j - gap]] > a[it]; j -= gap) {
+                indx[j] = indx[j - gap];
             }
-            a[j] = t;
+            indx[j] = it;
         }
     }
 }
+
 
 
 // Calculate rank of general vector, an alternative to calling \code{.Internal(rank(...))}
@@ -217,9 +271,13 @@ static void fr_shellsort_double_i_ (double * const a,
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 
     int sort_method = INTEGER(s_sort)[0];		
-    if (sort_method < 1 || sort_method > 2)		
-        error("'sort' must be 1 or 2");
-    enum { R_ORDERVECTOR = 1, FR_QUICKSORT };
+    if (sort_method < 1 || sort_method > 5)		
+        error("'sort' must be between 1 and 5");
+    enum { R_ORDERVECTOR = 1,
+           FR_QUICKSORT, 
+           FR_SHELLSORT_CIURA,
+           FR_SHELLSORT_SEDGWICK,
+           FR_SHELLSORT_TOKUDA };
     if (TYPEOF(s_x) != REALSXP)
         error(" for 'sort' benchmarking, x must be numeric");
 
@@ -309,6 +367,18 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     case FR_QUICKSORT:
         for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
         fr_quicksort_double_i_ (REAL(s_x), indx, n);
+        break;
+    case FR_SHELLSORT_CIURA:
+        for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
+        fr_shellsort_c_double_i_(REAL(s_x), indx, n);
+        break;
+    case FR_SHELLSORT_SEDGWICK:
+        for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
+        fr_shellsort_s_double_i_(REAL(s_x), indx, n);
+        break;
+    case FR_SHELLSORT_TOKUDA:
+        for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
+        fr_shellsort_t_double_i_(REAL(s_x), indx, n);
         break;
     default:
         error("unaccounted-for sort method");

@@ -33,11 +33,13 @@ static void fr_shellsort_double_i_ (double * const a,
         printf("ig = %d    gap = %d   n = %d\n", ig, gap, n);
         for (int q = 0; q < n; ++q) printf("%d   ", indx[q]); printf("\n");
         for (i = gap; i < n; ++i) {
-            t = a[i];
-            for (j = i; j >= gap && a[j - gap] > t; j -= gap) {
-                a[j] = a[j - gap];
+            it = indx[i];
+            //t = a[i];
+            for (j = i; j >= gap && a[indx[j - gap]] > a[it]; j -= gap) {
+                //a[j] = a[j - gap];
+                indx[j] = indx[j - gap];
             }
-            a[j] = t;
+            indx[j] = it;
         }
     }
 }
@@ -98,8 +100,8 @@ int main(int argc, char* argv[]) {
             ranks[indx[j]] = rnk;
     }
     printf("after average ranking: x[] and indx[]\n");
-    for (int i = 0; i < n; ++i) printf("%.0f   ", x[i]); putchar('\n');
-    for (int i = 0; i < n; ++i) printf("%d    ", indx[i]); putchar('\n');
+    for (int i = 0; i < n; ++i) printf(" %.0f  ", x[i]); putchar('\n');
+    for (int i = 0; i < n; ++i) printf("%.1f  ", ranks[i]); putchar('\n');
 }
 
 
