@@ -21,7 +21,7 @@
 
 // need to add ties.method, also the registration needs to change for that
 // API routines
-SEXP fastrank_(SEXP s_x, SEXP s_tm);
+SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
 
 // Registering the routines with R
@@ -34,7 +34,7 @@ static R_CMethodDef cMethods[] = {
     {NULL, NULL, 0}
 };
 static R_CallMethodDef callMethods[] = {
-    {"fastrank_",         (DL_FUNC) &fastrank_,         2},
+    {"fastrank_",         (DL_FUNC) &fastrank_,         3},
     {"fastrank_num_avg_", (DL_FUNC) &fastrank_num_avg_, 1},
     {NULL, NULL, 0}
 };
@@ -42,10 +42,9 @@ void R_init_fastrank(DllInfo *info) {
     R_registerRoutines(info, cMethods, callMethods, NULL, NULL);
 }
 
-/* quicksort double a, modifying a and indices i */
-static void fr_quicksort_double_ai_(double *       a, MY_SIZE_T indx[], const MY_SIZE_T n);
 /* quicksort double a, only indices i */
-static void fr_quicksort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
+/* static void fr_quicksort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n); */
+static void fr_quicksort_double_i_ (double * const a, int indx[], const MY_SIZE_T n);
 
 
 /* Fast calculation of ranks of a double vector, assigning average rank to ties
@@ -77,7 +76,8 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     /* double because "average" */
     SEXP s_ranks = PROTECT(allocVector(REALSXP, n));
     double *ranks = REAL(s_ranks);
-    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
+    /*MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));*/
+    int *indx = (int *) R_alloc(n, sizeof(int));
     /* pre-fill indx with index from 0..n-1 */
     for (MY_SIZE_T i = 0; i < n; ++i)
         indx[i] = i;
@@ -133,8 +133,9 @@ SEXP fastrank_num_avg_(SEXP s_x) {
 // http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to only modify a
 // vector of indices.  the vector must already be filled with 0..n-1
 
+/*                                    MY_SIZE_T indx[], */
 static void fr_quicksort_double_i_ (double * const a,
-                                    MY_SIZE_T indx[],
+                                    int indx[],
                                     const MY_SIZE_T n) {
     double p;
     MY_SIZE_T i, j, it;
@@ -153,38 +154,6 @@ static void fr_quicksort_double_i_ (double * const a,
  
 
 
-/*
-void fr_dummy(void) {
-    double a = 1.0; MY_SIZE_T i = 0, n = 1;
-    fr_quicksort_double_ai_(&a, &i, n);
-    fr_quicksort_double_i_(&a, &i, n);
-}
-*/
-
-// quick_sort code modified from
-// http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to return a vector
-// of sorted values and of previous indices
-
-static void fr_quicksort_double_ai_ (double    a[],
-                                     MY_SIZE_T indx[],
-                                     const MY_SIZE_T n) {
-    double p, t;
-    MY_SIZE_T i, j, it;
-    if (n < 2) return;
-    p = a[n / 2];
-    for (i = 0, j = n - 1; ; i++, j--) {
-        while (a[i] < p) i++;
-        while (p < a[j]) j--;
-        if (i >= j) break;
-        // swap values, and swap indices
-         t = a[i];       a[i] = a[j];       a[j] = t;     
-        it = indx[i]; indx[i] = indx[j]; indx[j] = it;
-    }
-    fr_quicksort_double_ai_(a, indx, i);
-    fr_quicksort_double_ai_(a + i, indx + i, n - i);
-}
- 
-
 
 // Calculate rank of general vector, an alternative to calling \code{.Internal(rank(...))}
 //
@@ -199,7 +168,14 @@ static void fr_quicksort_double_ai_ (double    a[],
 // 
 // @export fastrank_
 // 
-SEXP fastrank_(SEXP s_x, SEXP s_tm) {
+SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
+
+    int sort_method = INTEGER(s_sort)[0];		
+    if (sort_method < 1 || sort_method > 2)		
+        error("'sort' must be 1 or 2");
+    enum { R_ORDERVECTOR = 1, FR_QUICKSORT };
+    if (TYPEOF(s_x) != REALSXP)
+        error(" for 'sort' benchmarking, x must be numeric");
 
     /* Check vector to rank.
      *
@@ -278,10 +254,21 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm) {
     ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
     if (DEBUG) Rprintf("address of indx = 0x%p\n", indx);
 
-    // The Rf_lang1() wrapper is **required**, '1' is the number of args
-    R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
+    switch(sort_method) {
+    case R_ORDERVECTOR:
+        R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
+        break;
+    case FR_QUICKSORT:
+        for (int i = 0; i < n; ++i) indx[i] = i;
+        fr_quicksort_double_i_ (REAL(s_x), indx, n);
+        break;
+    default:
+        error("unaccounted-for sort method");
+        break;
+    }
+
     if (DEBUG) {
-        Rprintf("R_orderVector return indx:\n");
+        Rprintf("sort return indx:\n");
         for (int i = 0; i < n; ++i) Rprintf("%d ", indx[i]);
         Rprintf("\n");
     }
