@@ -68,9 +68,9 @@ NULL
 #fastrank <- function(x, ties.method = c("average", "first", "random", "max",
 #                                        "min"), first) {
 # TODO: manage ties.method, how does the internal rank do it?
-fastrank <- function(x, ties.method = "average") {
+fastrank <- function(x, ties.method = "average", sort.method = 1L) {
     #cat(x, "\n");
-    .Call("fastrank_", x, ties.method)
+    .Call("fastrank_", x, ties.method, sort.method)
 }
 
 

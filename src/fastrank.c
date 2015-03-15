@@ -3,7 +3,7 @@
 #include <R_ext/Rdynload.h>
 
 /* include inline debug statements? */
-#define DEBUG 1
+#define DEBUG 0
 
 #ifdef LONG_VECTOR_SUPPORT
 #  define MY_SIZE_T R_xlen_t

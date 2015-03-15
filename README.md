@@ -298,6 +298,34 @@ Unit: microseconds
 Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 
+### Which type of sort?
+
+Compare `R_orderVector` (1) with `fr_quicksort_double_i_` (2): 
+
+```R
+> y
+ [1] 108 101 101 105 109 101 105 110 107 105
+> microbenchmark(fastrank_num_avg(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: microseconds
+                          expr   min    lq     mean median    uq      max neval
+           fastrank_num_avg(y) 1.263 1.632 1.779896 1.7430 1.845  735.960 1e+05
+ fastrank(y, sort.method = 1L) 3.406 3.814 4.226931 3.9770 4.197 1597.970 1e+05
+ fastrank(y, sort.method = 2L) 3.253 3.629 4.038412 3.7925 4.006 1646.718 1e+05
+```
+
+The difference is clearer with a longer vector.
+
+```R
+> y = as.numeric(sample(100, 50, replace=TRUE)) + 1000
+> microbenchmark(rank(y), rank_new(y), fastrank_num_avg(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: microseconds
+                          expr    min     lq      mean median     uq       max neval
+                       rank(y) 24.436 27.201 31.147960 27.953 28.857  5090.032 1e+05
+                   rank_new(y)  1.572  2.018  2.373838  2.159  2.291  4246.831 1e+05
+           fastrank_num_avg(y)  1.966  2.526  3.190666  2.760  3.207  3313.549 1e+05
+ fastrank(y, sort.method = 1L)  6.349  7.255  8.621403  7.652  8.782  3098.557 1e+05
+ fastrank(y, sort.method = 2L)  4.091  4.913  6.576812  5.270  6.390 35683.247 1e+05
+```
 
 ## Remaining performance questions
 
