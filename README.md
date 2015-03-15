@@ -302,6 +302,8 @@ Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 **Result so far:** Quicksort and shellsort are faster than `R_orderVector`, and get faster with vector length.  Shellsort with Ciura-gaps is a touch faster 10 to 100 vector length, but quicksort is definitely faster at 10000 vector length.  This gaps issue definitely needs some more work.
 
+According to <http://en.wikipedia.org/wiki/Insertion_sort>, insertion sort is faster than quicksort when there are less than about 10 elements.  Should I implement this speedup?
+
 ####  R_orderVector vs. Quicksort
 
 Compare `R_orderVector` (1) with `fr_quicksort_double_i_` (2).  I modified the type of my quicksort to be `int` to match `R_orderVector`.

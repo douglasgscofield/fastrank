@@ -8,21 +8,29 @@
 #ifdef LONG_VECTOR_SUPPORT
 #  define MY_SIZE_T R_xlen_t
 #  define MY_LENGTH xlength
-/* R_orderVector() types */
-#  define ROV_SIZE_T int
-#  define ROV_LENGTH length
 #else
 #  define MY_SIZE_T int
 #  define MY_LENGTH length
-/* R_orderVector() types */
-#  define ROV_SIZE_T int
-#  define ROV_LENGTH length
 #endif
 
-// need to add ties.method, also the registration needs to change for that
-// API routines
+
+
+/* FUNCTION PROTOTYPE DECLARATION *********************************/
+
+static void fr_shellsort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n,
+                                    const MY_SIZE_T * the_gaps, const int N_GAPS);
+static void fr_shellsort_c_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+static void fr_shellsort_s_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+static void fr_shellsort_t_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+
+static void fr_quicksort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
+
+
+
+/* FUNCTION REGISTRATION *********************************/
 
 // Registering the routines with R
 static R_CallMethodDef callMethods[] = {
@@ -34,98 +42,18 @@ void R_init_fastrank(DllInfo *info) {
     R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 }
 
-static void fr_shellsort_c_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
-static void fr_shellsort_s_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
-static void fr_shellsort_t_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
-/* quicksort double a, only indices i */
-static void fr_shellsort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n,
-                                    const MY_SIZE_T * the_gaps, const int N_GAPS);
-static void fr_quicksort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
 
-/* Fast calculation of ranks of a double vector, assigning average rank to ties
+
+/*************************************************************************
+ * SORTING
  *
- * This function quickly calculates the ranks of a double vector while assigning
- * average rank to ties, and does absolutely no error checking on its arguments.
- * If you call it incorrectly, it will probably crash R.
- * 
- * @param x            a vector of integers, there must be no NA values.
- * 
- * @return a vector the same length as \code{x} with double ranks of the 
- *         corresponding elements in \code{x}.
- *
- * @seealso \code{\link{fastrank}}
- * 
- * @keywords internal
- * 
- * @export fastrank_num_avg_
- */ 
-SEXP fastrank_num_avg_(SEXP s_x) {
-    MY_SIZE_T n = MY_LENGTH(s_x);
-    double *x = REAL(s_x);
-    if (DEBUG) {
-        Rprintf("    x:  ");
-        for (int i = 0; i < n; ++i) Rprintf("%.3f ", x[i]); 
-        Rprintf("\n");
-    }
+ */
 
-    /* double because "average" */
-    SEXP s_ranks = PROTECT(allocVector(REALSXP, n));
-    double *ranks = REAL(s_ranks);
-    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
-    /* pre-fill indx with index from 0..n-1 */
-    for (MY_SIZE_T i = 0; i < n; ++i)
-        indx[i] = i;
-    fr_quicksort_double_i_(x, indx, n);
-    if (DEBUG) {
-        Rprintf(" indx:   ");
-        for (int i = 0; i < n; ++i) Rprintf("%d    ", indx[i]); 
-        Rprintf("\n");
-    }
-
-    MY_SIZE_T ib = 0;
-    double b = x[indx[0]];
-    MY_SIZE_T i;
-    for (i = 1; i < n; ++i) {
-        if (x[indx[i]] != b) { /* consecutive numbers differ */
-            if (ib < i - 1) {
-                /* at least one previous tie, b=i-1, a=ib
-                 * sum of ranks = (b + a) * (b - a + 1) / 2;
-                 * avg_rank = sum / (b - a + 1);
-                 * simplified_avg_rank = (b + a) / 2.0;
-                 * add 2 to compensate for index from 0
-                 */
-                double rnk = (i - 1 + ib + 2) / 2.0;
-                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
-                    ranks[indx[j]] = rnk;
-            } else {
-                ranks[indx[ib]] = (double)(ib + 1);
-            }
-            b = x[indx[i]];
-            ib = i;
-        }
-    }
-    /* now check leftovers */
-    if (ib == i - 1)  /* last two were unique */
-        ranks[indx[ib]] = (double)i;
-    else {  /* ended with ties */
-        double rnk = (i - 1 + ib + 2) / 2.0;
-        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
-            ranks[indx[j]] = rnk;
-    }
-    if (DEBUG) {
-        Rprintf("ranks:  ");
-        for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); 
-        Rprintf("\n");
-    }
-
-    UNPROTECT(1);
-    return s_ranks;
-}
-
-/* quick_sort code modified from
- * http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to only modify a
- * vector of indices.  the vector must already be filled with 0..n-1
+/* Quicksort from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort 
+ * modified to return a vector of indices and not modify the array of
+ * values a[].  The indx[] vector must be pre-allocated and already be 
+ * filled with 0..n-1.
  */
 
 static void fr_quicksort_double_i_ (const double * a,
@@ -145,8 +73,11 @@ static void fr_quicksort_double_i_ (const double * a,
     fr_quicksort_double_i_(a, indx,     i    );
     fr_quicksort_double_i_(a, indx + i, n - i);
 }
+
+
  
-/* http://en.wikipedia.org/wiki/Shellsort 
+/* Shellsort, following http://en.wikipedia.org/wiki/Shellsort 
+ *
  * The ideal gap is of some debate.  Internally R uses two forms of 
  * gaps, with the faster shellsort using Sedgwick's (1986) gaps.
  * The others below are other apparently better gap schemes 
@@ -172,6 +103,7 @@ static void fr_quicksort_double_i_ (const double * a,
        return(g[k])
    }
  */
+
 #ifdef LONG_VECTOR_SUPPORT
    /* R's Sedgwick gaps go up to between 2^40 and 2^41, 
     * use this criteria for the others */
@@ -219,15 +151,7 @@ static const MY_SIZE_T tokuda_gaps [N_GAPS_TOKUDA] = {
     1
 };
 
-static void fr_shellsort_c_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
-    fr_shellsort_double_i_(a, indx, n, &ciura_gaps[0], N_GAPS_CIURA);
-}
-static void fr_shellsort_s_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
-    fr_shellsort_double_i_(a, indx, n, &sedgwick_gaps[0], N_GAPS_SEDGWICK);
-}
-static void fr_shellsort_t_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
-    fr_shellsort_double_i_(a, indx, n, &tokuda_gaps[0], N_GAPS_TOKUDA);
-}
+
 
 static void fr_shellsort_double_i_ (const double * a,
                                     MY_SIZE_T indx[],
@@ -255,20 +179,37 @@ static void fr_shellsort_double_i_ (const double * a,
 
 
 
-// Calculate rank of general vector, an alternative to calling \code{.Internal(rank(...))}
-//
-// @param x            a vector of integers, there must be no NA values.
-// 
-// @return a vector the same length as \code{x} with double ranks of the 
-//         corresponding elements in \code{x}.
-//
-// @seealso \code{\link{fastrank}}
-// 
-// @keywords internal
-// 
-// @export fastrank_
-// 
+static void fr_shellsort_c_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
+    fr_shellsort_double_i_(a, indx, n, &ciura_gaps[0], N_GAPS_CIURA);
+}
+
+
+
+static void fr_shellsort_s_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
+    fr_shellsort_double_i_(a, indx, n, &sedgwick_gaps[0], N_GAPS_SEDGWICK);
+}
+
+
+
+static void fr_shellsort_t_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n) {
+    fr_shellsort_double_i_(a, indx, n, &tokuda_gaps[0], N_GAPS_TOKUDA);
+}
+
+
+
+
+/** END OF SORTING *****************************************************/
+
+
+
+
+/* General ranking (no characters), called from fastrank() wrapper */
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
+
+    if (TYPEOF(s_x) != REALSXP)
+        error(" for 'sort' benchmarking, x must be numeric");
+    if (TYPEOF(s_x) == STRSXP)
+        error("'character' values not allowed");
 
     int sort_method = INTEGER(s_sort)[0];		
     if (sort_method < 1 || sort_method > 5)		
@@ -278,37 +219,17 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
            FR_SHELLSORT_CIURA,
            FR_SHELLSORT_SEDGWICK,
            FR_SHELLSORT_TOKUDA };
-    if (TYPEOF(s_x) != REALSXP)
-        error(" for 'sort' benchmarking, x must be numeric");
 
-    /* Check vector to rank.
-     *
-     * Is the check here enough?  The check in R code is probably slower,
-     * and checking in the switch() below is too late, after the 
-     * R_orderVector() call
-     */
-    if (TYPEOF(s_x) == STRSXP)
-        error("'character' values not allowed, consider base R 'rank' or converting to a compatible type");
-    ROV_SIZE_T n = ROV_LENGTH(s_x);
+    MY_SIZE_T n = MY_LENGTH(s_x);
     if (DEBUG) Rprintf("length of s_x = %d\n", n);
 
     /* Now process ties.method */
     if (TYPEOF(s_tm) != STRSXP)
-        error("ties.method must be one of \"average\", \"first\", \"random\", \"max\", \"min\"");
+        error("ties.method must be \"average\", \"first\", \"random\", \"max\", or \"min\"");
     const char* tm = CHAR(STRING_ELT(s_tm, 0));
 
     enum { TIES_ERROR = 0, TIES_AVERAGE, TIES_FIRST, TIES_RANDOM,
            TIES_MAX, TIES_MIN } ties_method;
-
-#if 0
-    if (DEBUG)
-        Rprintf("tm = :%s: [0]=%c [1]=%c\n", tm, tm[0], tm[1]);
-    int find_method = INTEGER(s_find)[0];
-    if (find_method < 1 || find_method > 2)
-        error("'find' must be 1 or 2");
-
-    if (find_method == 1) {
-#endif
 
     /* method 1, this is a bit faster, like 0.2% */
     switch(tm[0]) {
@@ -335,29 +256,20 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
         error("unknown ties.method");
         break;
     }
-
 #if 0
-    } else {
-
-        /* method 2 */
-        if (! strcmp(tm, "average"))     ties_method = TIES_AVERAGE;
-        else if (! strcmp(tm, "first"))  ties_method = TIES_FIRST;
-        else if (! strcmp(tm, "random")) ties_method = TIES_RANDOM;
-        else if (! strcmp(tm, "max"))    ties_method = TIES_MAX;
-        else if (! strcmp(tm, "min"))    ties_method = TIES_MIN;
-        else {
-            ties_method = TIES_ERROR;
-            error("unknown ties.method");
-        }
-
+    /* method 2 */
+    if (! strcmp(tm, "average"))     ties_method = TIES_AVERAGE;
+    else if (! strcmp(tm, "first"))  ties_method = TIES_FIRST;
+    else if (! strcmp(tm, "random")) ties_method = TIES_RANDOM;
+    else if (! strcmp(tm, "max"))    ties_method = TIES_MAX;
+    else if (! strcmp(tm, "min"))    ties_method = TIES_MIN;
+    else {
+        ties_method = TIES_ERROR;
+        error("unknown ties.method");
     }
 #endif
 
-    if (DEBUG) Rprintf("ties_method = %d\n", ties_method);
-
     MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
-    //ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
-    if (DEBUG) Rprintf("address of indx = 0x%p\n", indx);
 
     switch(sort_method) {
     case R_ORDERVECTOR:
@@ -393,13 +305,7 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     // indx[i] holds the index of the value in s_x that belongs in position i,
     // e.g., indx[0] holds the position in s_x of the first value
 
-    /* Points to the return value, which is created below */
-    SEXP s_ranks = NULL;
-
-    // Now do rank calculations with type-specific pointers and comparisons
-    // note this uses ROV_SIZE_T for vector indexing and ROV_LENGTH for
-    // determing vector length.  R_orderVector returns int*, but it might not
-    // in future.
+    SEXP s_ranks = NULL;  /* return value, allocated below */
 
 /* for accessing the value of the vector through the index entry */
 #define XI(_i_) x[indx[_i_]]
@@ -430,7 +336,7 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     __RTYPE rnk = (__RTYPE)(ib + 1); \
     if (DEBUG) Rprintf("min, ranks[%d .. %d] <- %d   " __loc__ "\n", \
                        indx[ib], indx[i - 1], rnk); \
-    for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
+    for (MY_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[indx[j]] = rnk; \
     } \
     }
@@ -441,7 +347,7 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     __RTYPE rnk = (__RTYPE)i; \
     if (DEBUG) Rprintf("max, ranks[%d .. %d] <- %d   " __loc__ "\n", \
                        indx[ib], indx[i - 1], rnk); \
-    for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
+    for (MY_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[indx[j]] = rnk; \
     } \
     }
@@ -452,7 +358,7 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     __RTYPE rnk = (i - 1 + ib + 2) / 2.0; \
     if (DEBUG) Rprintf("average, ranks[%d .. %d] <- %d   " __loc__ "\n", \
                        indx[ib], indx[i - 1], rnk); \
-    for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
+    for (MY_SIZE_T j = ib; j <= i - 1; ++j) { \
         ranks[indx[j]] = rnk; \
     } \
     }
@@ -460,8 +366,8 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 /* ties' rank is consecutive on their order */
 #define FR_ties_first(__RTYPE, __loc__) \
     { \
-    Rprintf("ties.method == 'first' only truly correct when the sort is stable"); \
-    for (ROV_SIZE_T j = ib; j <= i - 1; ++j) { \
+    if (DEBUG) Rprintf("is 'first' only correct when sort is stable?"); \
+    for (MY_SIZE_T j = ib; j <= i - 1; ++j) { \
         __RTYPE rnk = (__RTYPE)(j + 1); \
         if (DEBUG) Rprintf("first, ranks[%d] <- %d  " __loc__ "\n", indx[j], rnk); \
         ranks[indx[j]] = rnk; \
@@ -471,13 +377,13 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 /* ties' rank is a random shuffling of their order */
 #define FR_ties_random(__RTYPE, __loc__) \
     { \
-    ROV_SIZE_T tn = i - ib; \
-    ROV_SIZE_T* t = (ROV_SIZE_T*) R_alloc(tn, sizeof(ROV_SIZE_T)); \
-    ROV_SIZE_T j; \
+    MY_SIZE_T tn = i - ib; \
+    MY_SIZE_T* t = (MY_SIZE_T*) R_alloc(tn, sizeof(MY_SIZE_T)); \
+    MY_SIZE_T j; \
     for (j = 0; j < tn; ++j) \
         t[j] = j; \
     for (j = ib; j < i - 1; ++j) { \
-        ROV_SIZE_T k = (ROV_SIZE_T)(tn * unif_rand()); \
+        MY_SIZE_T k = (MY_SIZE_T)(tn * unif_rand()); \
         __RTYPE rnk = (__RTYPE)(t[k] + ib + 1); \
         if (DEBUG) Rprintf("random, rank[%d] <- %d  " __loc__ "\n", indx[j], rnk); \
         ranks[indx[j]] = rnk; \
@@ -496,9 +402,9 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     __RTYPE* ranks = __R_TCONV(s_ranks); \
     if (DEBUG) Rprintf("address of ranks = 0x%p\n", ranks); \
     __TYPE* x = __TCONV(s_x); \
-    ROV_SIZE_T ib = 0; \
+    MY_SIZE_T ib = 0; \
     __TYPE b = XI(0); \
-    ROV_SIZE_T i; \
+    MY_SIZE_T i; \
     if (DEBUG) Rprintf("ib = %d\n", ib); \
     for (i = 1; i < n; ++i) { \
         if (! EQUAL(XI(i), b)) { \
@@ -634,4 +540,72 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     UNPROTECT(1);
     return s_ranks;
 }
+
+
+
+/* DIRECT ENTRIES ******************************************/
+
+
+/* We want to use the above macros to set these up */
+
+
+/* Rank a numeric vector giving ties their average rank */
+SEXP fastrank_num_avg_(SEXP s_x) {
+    MY_SIZE_T n = MY_LENGTH(s_x);
+    double *x = REAL(s_x);
+    if (DEBUG) {
+        Rprintf("    x:  ");
+        for (int i = 0; i < n; ++i) Rprintf("%.3f ", x[i]); 
+        Rprintf("\n");
+    }
+
+    /* double because "average" */
+    SEXP s_ranks = PROTECT(allocVector(REALSXP, n));
+    double *ranks = REAL(s_ranks);
+    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
+    /* pre-fill indx with index from 0..n-1 */
+    for (MY_SIZE_T i = 0; i < n; ++i)
+        indx[i] = i;
+    fr_quicksort_double_i_(x, indx, n);
+    if (DEBUG) {
+        Rprintf(" indx:   ");
+        for (int i = 0; i < n; ++i) Rprintf("%d    ", indx[i]); 
+        Rprintf("\n");
+    }
+
+    MY_SIZE_T ib = 0;
+    double b = x[indx[0]];
+    MY_SIZE_T i;
+    for (i = 1; i < n; ++i) {
+        if (x[indx[i]] != b) { /* consecutive numbers differ */
+            if (ib < i - 1) {  /* average of sum of ranks */
+                double rnk = (i - 1 + ib + 2) / 2.0;
+                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+                    ranks[indx[j]] = rnk;
+            } else {
+                ranks[indx[ib]] = (double)(ib + 1);
+            }
+            b = x[indx[i]];
+            ib = i;
+        }
+    }
+    /* now check leftovers */
+    if (ib == i - 1)  /* last two were unique */
+        ranks[indx[ib]] = (double)i;
+    else {  /* ended with ties */
+        double rnk = (i - 1 + ib + 2) / 2.0;
+        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+            ranks[indx[j]] = rnk;
+    }
+    if (DEBUG) {
+        Rprintf("ranks:  ");
+        for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); 
+        Rprintf("\n");
+    }
+
+    UNPROTECT(1);
+    return s_ranks;
+}
+
+
 
