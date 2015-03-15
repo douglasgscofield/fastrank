@@ -300,20 +300,36 @@ Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 ### Which type of sort?
 
-Compare `R_orderVector` (1) with `fr_quicksort_double_i_` (2): 
+**Result so far:** My quicksort is faster than `R_orderVector`, and gets faster with vector length.
+
+Compare `R_orderVector` (1) with `fr_quicksort_double_i_` (2).  I modified the type of my quicksort to be `int` to match `R_orderVector`.
 
 ```R
 > y
  [1] 108 101 101 105 109 101 105 110 107 105
-> microbenchmark(fastrank_num_avg(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
-Unit: microseconds
-                          expr   min    lq     mean median    uq      max neval
-           fastrank_num_avg(y) 1.263 1.632 1.779896 1.7430 1.845  735.960 1e+05
- fastrank(y, sort.method = 1L) 3.406 3.814 4.226931 3.9770 4.197 1597.970 1e+05
- fastrank(y, sort.method = 2L) 3.253 3.629 4.038412 3.7925 4.006 1646.718 1e+05
+> microbenchmark(rank(y), rank_new(y), fastrank_num_avg(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: nanoseconds
+                          expr   min    lq      mean median    uq      max neval
+                       rank(y) 21935 24419 26731.610  25078 25790 33472509 1e+05
+                   rank_new(y)   645  1062  1229.118   1192  1320   915326 1e+05
+           fastrank_num_avg(y)  1279  1802  2135.015   2009  2448   866067 1e+05
+ fastrank(y, sort.method = 1L)  3501  4231  5041.972   4589  5693   975332 1e+05
+ fastrank(y, sort.method = 2L)  3294  4036  4896.239   4389  5471  1791393 1e+05
+```
+adding explicit `ties.method = "average"` where I can:
+```R
+> rank_new <- function(x, ties.method="average") .Internal(rank(x, length(x), ties.method))
+> microbenchmark(rank(y, ties.method="average"), rank_new(y, ties.method="average"), fastrank_num_avg(y), fastrank(y, ties.method="average", sort.method=1L), fastrank(y, ties.method="average", sort.method=2L), times=100000)
+Unit: nanoseconds
+                                                   expr   min    lq      mean median    uq      max neval
+                       rank(y, ties.method = "average") 24626 27346 29872.924  28052 28833 34338523 1e+05
+                   rank_new(y, ties.method = "average")   745  1207  1442.952   1373  1537   949948 1e+05
+                                    fastrank_num_avg(y)  1298  1809  2216.323   2031  2480  2571378 1e+05
+ fastrank(y, ties.method = "average", sort.method = 1L)  3519  4296  5137.635   4645  5759   911103 1e+05
+ fastrank(y, ties.method = "average", sort.method = 2L)  3365  4093  5001.411   4434  5541   947911 1e+05
 ```
 
-The difference is clearer with a longer vector.
+The difference between sort methods increases as vector length grows.
 
 ```R
 > y = as.numeric(sample(100, 50, replace=TRUE)) + 1000
@@ -325,13 +341,68 @@ Unit: microseconds
            fastrank_num_avg(y)  1.966  2.526  3.190666  2.760  3.207  3313.549 1e+05
  fastrank(y, sort.method = 1L)  6.349  7.255  8.621403  7.652  8.782  3098.557 1e+05
  fastrank(y, sort.method = 2L)  4.091  4.913  6.576812  5.270  6.390 35683.247 1e+05
+> yyy = as.double(sample(10000, 10000, replace=TRUE))
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=1L), fastrank(yyy, sort=2L), times=1000)
+Unit: microseconds
+                     expr      min        lq      mean    median        uq       max neval
+                rank(yyy) 1305.333 1333.2425 1496.8820 1356.7100 1408.1640 33502.222  1000
+            rank_new(yyy) 1022.618 1031.4735 1097.7066 1054.5470 1078.7895  3135.501  1000
+ fastrank(yyy, sort = 1L) 2603.435 2633.9570 2770.0089 2675.6040 2733.2100  5759.185  1000
+ fastrank(yyy, sort = 2L)  771.286  787.1900  838.3540  802.7980  822.3890  3434.097  1000
+```
+
+Now to add R's shellsort.
+
+
+
+### Which is faster, .Call or .C?
+
+**Result:** `.Call`, definitely.  With length 10 and 100 it is about 25% faster and with length 10000 it is about 5% faster.
+
+I wrote a `.C` version of the direct routine, `fastrank_num_avg_C_`.  Benchmark with a short vector shows it is slower than `.Call`, at a variety of vector sizes.
+
+**Note also** that with vector length 10000 my direct routines are faster than even calling `.Internal(rank(...))`, yippee :-)  At vector lengths 10k or more, the advantage of calling the direct routine diminishes to almost nothing.  The direct routines are good for relatively shorter vectors.
+
+```R
+> y
+ [1] 108 101 101 105 109 101 105 110 107 105
+> fastrank_num_avg_C(y)
+ [1]  8  2  2  5  9  2  5 10  7  5
+> fastrank_num_avg(y)
+ [1]  8  2  2  5  9  2  5 10  7  5
+> microbenchmark(rank(y), rank_new(y), fastrank(y), fastrank_num_avg(y), fastrank_num_avg_C(y), times=100000)
+Unit: nanoseconds
+                  expr   min    lq      mean median    uq      max neval
+               rank(y) 21840 24758 27237.822  25509 26304 34307087 1e+05
+           rank_new(y)   703  1165  1339.865   1311  1458   877230 1e+05
+           fastrank(y)  3459  4251  5041.774   4583  5583   984864 1e+05
+   fastrank_num_avg(y)  3056  3780  4523.491   4092  4984   976645 1e+05
+ fastrank_num_avg_C(y)  4709  5730  6734.765   6315  7336  1045547 1e+05
+> yy = as.double(sample(100, 100, replace=TRUE))
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy), fastrank_num_avg(yy), fastrank_num_avg_C(yy), times=100000)
+Unit: microseconds
+                   expr    min     lq      mean median      uq       max neval
+               rank(yy) 26.981 30.106 35.362497 30.954 31.9030  6030.124 1e+05
+           rank_new(yy)  2.759  3.297  3.857391  3.459  3.6130  3683.018 1e+05
+           fastrank(yy) 10.599 11.815 13.249962 12.268 13.2970  4209.686 1e+05
+   fastrank_num_avg(yy)  4.617  5.438  6.974342  5.771  6.6745 36437.274 1e+05
+ fastrank_num_avg_C(yy)  6.698  7.851  9.591220  8.487  9.5000  6090.163 1e+05
+> yyy = as.double(sample(10000, 10000, replace=TRUE))
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=1L), fastrank(yyy, sort=2L), fastrank_num_avg(yyy), fastrank_num_avg_C(yyy), times=1000)
+Unit: microseconds
+                     expr      min        lq      mean    median        uq       max neval
+                rank(yyy) 1305.333 1333.2425 1496.8820 1356.7100 1408.1640 33502.222  1000
+            rank_new(yyy) 1022.618 1031.4735 1097.7066 1054.5470 1078.7895  3135.501  1000
+ fastrank(yyy, sort = 1L) 2603.435 2633.9570 2770.0089 2675.6040 2733.2100  5759.185  1000
+ fastrank(yyy, sort = 2L)  771.286  787.1900  838.3540  802.7980  822.3890  3434.097  1000
+    fastrank_num_avg(yyy)  769.002  784.2395  846.8260  801.3095  823.0885  3014.107  1000
+  fastrank_num_avg_C(yyy)  806.524  824.8475  891.3752  839.8600  863.3015  3237.999  1000
 ```
 
 ## Remaining performance questions
 
 Of course I want to squeeze as much time as I can, so need to explore an updated `fastrank_num_avg` since the direct entries *should* always be fastest, but there are a few more general points to explore. 
 
-* Is there  a difference in time between using the older `.C` interface and `.Call`?
 * Is it faster to compute length of `x` internally, as I do now, or accept it as a passed argument like `.Internal(rank(...))`?
 * In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
 * Does it make a difference to byte-compile the R wrapper?

@@ -23,14 +23,14 @@
 // API routines
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
+void fastrank_num_avg_C_(double * x, int * n, double * ranks);
 
 // Registering the routines with R
-static R_NativePrimitiveArgType fastrank_real_t[] = {
-    REALSXP
+static R_NativePrimitiveArgType fastrank_num_avg_C_t[] = {
+    REALSXP, INTSXP, REALSXP
 };
 static R_CMethodDef cMethods[] = {
-    {"fastrank_num_avg_", (DL_FUNC) &fastrank_num_avg_, 1, 
-        fastrank_real_t},
+    {"fastrank_num_avg_C_", (DL_FUNC) &fastrank_num_avg_C_, 3, fastrank_num_avg_C_t},
     {NULL, NULL, 0}
 };
 static R_CallMethodDef callMethods[] = {
@@ -127,6 +127,61 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     UNPROTECT(1);
     return s_ranks;
 }
+
+void fastrank_num_avg_C_(double * x, int * nx, double * ranks) {
+    int n = *nx;
+    if (DEBUG) {
+        Rprintf("    x:  ");
+        for (int i = 0; i < n; ++i) Rprintf("%.3f ", x[i]); 
+        Rprintf("\n");
+    }
+    int *indx = (int *) R_alloc(n, sizeof(int));
+    for (MY_SIZE_T i = 0; i < n; ++i)
+        indx[i] = i;
+    fr_quicksort_double_i_(x, indx, n);
+    if (DEBUG) {
+        Rprintf(" indx:   ");
+        for (int i = 0; i < n; ++i) Rprintf("%d    ", indx[i]); 
+        Rprintf("\n");
+    }
+
+    MY_SIZE_T ib = 0;
+    double b = x[indx[0]];
+    MY_SIZE_T i;
+    for (i = 1; i < n; ++i) {
+        if (x[indx[i]] != b) { /* consecutive numbers differ */
+            if (ib < i - 1) {
+                /* at least one previous tie, b=i-1, a=ib
+                 * sum of ranks = (b + a) * (b - a + 1) / 2;
+                 * avg_rank = sum / (b - a + 1);
+                 * simplified_avg_rank = (b + a) / 2.0;
+                 * add 2 to compensate for index from 0
+                 */
+                double rnk = (i - 1 + ib + 2) / 2.0;
+                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+                    ranks[indx[j]] = rnk;
+            } else {
+                ranks[indx[ib]] = (double)(ib + 1);
+            }
+            b = x[indx[i]];
+            ib = i;
+        }
+    }
+    /* now check leftovers */
+    if (ib == i - 1)  /* last two were unique */
+        ranks[indx[ib]] = (double)i;
+    else {  /* ended with ties */
+        double rnk = (i - 1 + ib + 2) / 2.0;
+        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
+            ranks[indx[j]] = rnk;
+    }
+    if (DEBUG) {
+        Rprintf("ranks:  ");
+        for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); 
+        Rprintf("\n");
+    }
+}
+
 
 
 // quick_sort code modified from

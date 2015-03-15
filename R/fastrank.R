@@ -104,8 +104,10 @@ fastrank <- function(x, ties.method = "average", sort.method = 1L) {
 #' @export fastrank_num_avg
 #'
 fastrank_num_avg <- function(x) {
-    if (! is.double(x))
-        stop(deparse(substitute(x)), " must be of type 'numeric', 'double'")
-    .Call("fastrank_num_avg_", x, PACKAGE = "fastrank")
+    .Call("fastrank_num_avg_", x)
+}
+
+fastrank_num_avg_C <- function(x) {
+    .C("fastrank_num_avg_C_", as.numeric(x), as.integer(length(x)), double(length(x)))[[3]]
 }
 
