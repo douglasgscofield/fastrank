@@ -23,28 +23,19 @@
 // API routines
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
-void fastrank_num_avg_C_(double * x, int * n, double * ranks);
 
 // Registering the routines with R
-static R_NativePrimitiveArgType fastrank_num_avg_C_t[] = {
-    REALSXP, INTSXP, REALSXP
-};
-static R_CMethodDef cMethods[] = {
-    {"fastrank_num_avg_C_", (DL_FUNC) &fastrank_num_avg_C_, 3, fastrank_num_avg_C_t},
-    {NULL, NULL, 0}
-};
 static R_CallMethodDef callMethods[] = {
     {"fastrank_",         (DL_FUNC) &fastrank_,         3},
     {"fastrank_num_avg_", (DL_FUNC) &fastrank_num_avg_, 1},
     {NULL, NULL, 0}
 };
 void R_init_fastrank(DllInfo *info) {
-    R_registerRoutines(info, cMethods, callMethods, NULL, NULL);
+    R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 }
 
 /* quicksort double a, only indices i */
-/* static void fr_quicksort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n); */
-static void fr_quicksort_double_i_ (double * const a, int indx[], const MY_SIZE_T n);
+static void fr_quicksort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
 
 /* Fast calculation of ranks of a double vector, assigning average rank to ties
@@ -128,69 +119,13 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     return s_ranks;
 }
 
-void fastrank_num_avg_C_(double * x, int * nx, double * ranks) {
-    int n = *nx;
-    if (DEBUG) {
-        Rprintf("    x:  ");
-        for (int i = 0; i < n; ++i) Rprintf("%.3f ", x[i]); 
-        Rprintf("\n");
-    }
-    int *indx = (int *) R_alloc(n, sizeof(int));
-    for (MY_SIZE_T i = 0; i < n; ++i)
-        indx[i] = i;
-    fr_quicksort_double_i_(x, indx, n);
-    if (DEBUG) {
-        Rprintf(" indx:   ");
-        for (int i = 0; i < n; ++i) Rprintf("%d    ", indx[i]); 
-        Rprintf("\n");
-    }
+/* quick_sort code modified from
+ * http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to only modify a
+ * vector of indices.  the vector must already be filled with 0..n-1
+ */
 
-    MY_SIZE_T ib = 0;
-    double b = x[indx[0]];
-    MY_SIZE_T i;
-    for (i = 1; i < n; ++i) {
-        if (x[indx[i]] != b) { /* consecutive numbers differ */
-            if (ib < i - 1) {
-                /* at least one previous tie, b=i-1, a=ib
-                 * sum of ranks = (b + a) * (b - a + 1) / 2;
-                 * avg_rank = sum / (b - a + 1);
-                 * simplified_avg_rank = (b + a) / 2.0;
-                 * add 2 to compensate for index from 0
-                 */
-                double rnk = (i - 1 + ib + 2) / 2.0;
-                for (MY_SIZE_T j = ib; j <= i - 1; ++j)
-                    ranks[indx[j]] = rnk;
-            } else {
-                ranks[indx[ib]] = (double)(ib + 1);
-            }
-            b = x[indx[i]];
-            ib = i;
-        }
-    }
-    /* now check leftovers */
-    if (ib == i - 1)  /* last two were unique */
-        ranks[indx[ib]] = (double)i;
-    else {  /* ended with ties */
-        double rnk = (i - 1 + ib + 2) / 2.0;
-        for (MY_SIZE_T j = ib; j <= i - 1; ++j)
-            ranks[indx[j]] = rnk;
-    }
-    if (DEBUG) {
-        Rprintf("ranks:  ");
-        for (int i = 0; i < n; ++i) Rprintf("%.1f   ", ranks[i]); 
-        Rprintf("\n");
-    }
-}
-
-
-
-// quick_sort code modified from
-// http://rosettacode.org/wiki/Sorting_algorithms/Quicksort to only modify a
-// vector of indices.  the vector must already be filled with 0..n-1
-
-/*                                    MY_SIZE_T indx[], */
 static void fr_quicksort_double_i_ (double * const a,
-                                    int indx[],
+                                    MY_SIZE_T indx[],
                                     const MY_SIZE_T n) {
     double p;
     MY_SIZE_T i, j, it;
@@ -207,7 +142,64 @@ static void fr_quicksort_double_i_ (double * const a,
     fr_quicksort_double_i_(a, indx + i, n - i);
 }
  
+/* http://en.wikipedia.org/wiki/Shellsort 
+ * The ideal gap is of some debate.  Internally R uses two forms of 
+ * gaps, with the faster shellsort using Sedgwick's (1986) gaps.
+ * The others below are other apparently better gap schemes 
+ * suggested at the above Wikipedia page.
 
+   sedgwick_gap <- function(k) {
+       if (k == 1) return(0)
+       k <- k - 1
+       as.integer(4^k + (3 * 2^(k - 1)) + 1)
+   }
+   tokuda_gap <- function(k) as.integer(ceiling((9^k - 4^k)/(5 * 4^(k-1))))
+   ciura_gap <- function(k) {
+       g <- c(1L, 4L, 10L, 23L, 57L, 132L, 301L, 701L)
+       max_g <- length(g)
+       if (k > max_g) {
+           h <- g[max_g]
+           while (k > max_g) {
+               h <- as.integer(floor(h * 2.25))
+               k <- k - 1
+           }
+           return(h)
+       }
+       return(g[k])
+   }
+ */
+#ifdef LONG_VECTOR_SUPPORT
+#define N_GAPS 20
+#else
+#define N_GAPS 16
+#endif
+/* Using Tokuda gaps here */
+static const MY_SIZE_T shell_gaps [N_INCS + 1] = {
+#ifdef LONG_VECTOR_SUPPORT
+    19903198L,  8845866L,  3931496L,  1747331L,
+#endif
+    776591L, 345152L, 153401L, 68178L, 30301L,
+    13467L, 5985L, 2660L, 1182L, 525L,
+    233L, 103L, 46L, 20L, 9L,
+    4L, 1L
+};
+static void fr_shellsort_double_i_ (double * const a,
+                                    MY_SIZE_T indx[],
+                                    const MY_SIZE_T n) {
+    MY_SIZE_T i, j, ig, gap;
+    double t;
+    for (ig = 0; shell_gaps[ig] >= n; ++ig);
+    for (; ig <= N_GAPS; ++ig) {
+        gap = shell_gaps[ig];
+        for (i = gap; i < n; ++i) {
+            t = a[i];
+            for (j = i; j >= gap && a[j - gap] > t; j -= gap) {
+                a[j] = a[j - gap];
+            }
+            a[j] = t;
+        }
+    }
+}
 
 
 // Calculate rank of general vector, an alternative to calling \code{.Internal(rank(...))}
