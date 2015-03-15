@@ -2,25 +2,26 @@
 % Please edit documentation in R/fastrank.R
 \name{fastrank_num_avg}
 \alias{fastrank_num_avg}
-\title{Rank integer and numeric vectors with low overhead}
+\title{Rank numeric (double) vectors, assigning ties the average rank}
 \usage{
 fastrank_num_avg(x)
 }
 \arguments{
-\item{x}{A vector of values to rank.}
+\item{x}{A vector of numeric (double) values to rank}
 }
 \value{
-An integer vector of ranks of values in \code{x}, with length
+A numeric vector of ranks of values in \code{x}, with length
 the same as \code{length(x)}.  Ties are broken by giving entries the
 average rank of the tied entries.
 }
 \description{
-An R function providing fast ranking for integer and numeric vectors, as an
-alternative to calling .Internal(rank(...)), which packages cannot do.
+An R function providing fast ranking for numeric vectors, assigning tied
+values the average rank.
 }
 \details{
 There is still a bit of overhead in calling this method.  If you really want
-the fastest interface, then call the C function directly.
+the fastest interface, then call .\code{.Internal(rank(...))} function
+directly.
 }
 \note{
 The vector must not include NAs or NaNs.  This is **not** checked.

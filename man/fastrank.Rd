@@ -4,15 +4,27 @@
 \alias{fastrank}
 \title{Rank vectors with low overhead}
 \usage{
-fastrank(x)
+fastrank(x, ties.method = "average", sort.method = 1L)
 }
 \arguments{
-\item{x}{A vector of values to rank.}
+\item{x}{A vector of values to rank.  Note that character vectors are not
+accepted, as the internal R routines for comparing characters as R does
+are not part of the R API.  Please use \code{\link{rank}} from base R
+to rank character vectors.}
+
+\item{ties.method}{Method for resolving rank ties in \code{x}, all in
+\code{\link{rank}} are available}
+
+\item{x}{Vector to calculate ranks for}
+
+\item{find}{Method for finding \code{ties.method}, either 1 or 2}
 }
 \value{
-An integer vector of ranks of values in \code{x}, with length
+A vector of ranks of values in \code{x}, with length
 the same as \code{length(x)}.  Ranks of tied values are handled according
-to \code{ties.method}, see \code{\link{rank}}.
+to \code{ties.method}, see \code{\link{rank}}.  When \code{ties.method} is
+\code{"average"}, a numeric vector is returned, otherwise an integer
+vector is returned.
 }
 \description{
 An R function providing fast ranking vectors, as an alternative to calling
@@ -24,6 +36,8 @@ one of the other entry points (e.g., \code{fastrank_numeric_average}) or
 }
 \note{
 The vector must not include NAs or NaNs.  This is **not** checked.
+
+The vector must also not be of type character.
 }
 \references{
 \url{https://github.com/douglasgscofield/fastrank}

@@ -300,7 +300,9 @@ Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 ### Which type of sort?
 
-**Result so far:** My quicksort is faster than `R_orderVector`, and gets faster with vector length.
+**Result so far:** Quicksort and shellsort are faster than `R_orderVector`, and get faster with vector length.  Shellsort with Ciura-gaps is a touch faster 10 to 100 vector length, but quicksort is definitely faster at 10000 vector length.  This gaps issue definitely needs some more work.
+
+####  R_orderVector vs. Quicksort
 
 Compare `R_orderVector` (1) with `fr_quicksort_double_i_` (2).  I modified the type of my quicksort to be `int` to match `R_orderVector`.
 
@@ -350,6 +352,8 @@ Unit: microseconds
  fastrank(yyy, sort = 1L) 2603.435 2633.9570 2770.0089 2675.6040 2733.2100  5759.185  1000
  fastrank(yyy, sort = 2L)  771.286  787.1900  838.3540  802.7980  822.3890  3434.097  1000
 ```
+
+#### Quicksort vs. three different shellsorts
 
 Now to add shellsort, with three implementations of gap distances, following the Wikipedia page for shellsort: Ciura (`3L`), Sedgwick (`4L`, R uses this), and Tokuda (`5L`).  This is in addition to quicksort (`2L`).
 
@@ -418,9 +422,9 @@ Unit: microseconds
 and without repeats:
 ```R
 > y = as.double(sample(10, 10, replace=FALSE))
-> > yy = as.double(sample(100, 100, replace=FALSE))
-> > yyy = as.double(sample(10000, 10000, replace=FALSE))
-> > microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), times=100000)
+> yy = as.double(sample(100, 100, replace=FALSE))
+> yyy = as.double(sample(10000, 10000, replace=FALSE))
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), times=100000)
 Unit: nanoseconds
                    expr   min    lq    mean median    uq      max neval
                 rank(y) 21820 24971 27910.8  25721 26751  3601799 1e+05

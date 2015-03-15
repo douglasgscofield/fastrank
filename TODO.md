@@ -36,6 +36,7 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
+* Indexed shell sort now works, and offers three gap methods: Ciura, Sedgwick, Tokuda
 * `fr_quicksort_double_i_` does indices only
 * In `fastrank_num_avg`, no longer sorting the passed vector
 * Benchmarked `.C` vs. `.Call`, and found `.Call` is 5-25% faster (faster with shorter vectors)
