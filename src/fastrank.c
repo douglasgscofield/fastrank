@@ -35,7 +35,7 @@ void R_init_fastrank(DllInfo *info) {
 }
 
 /* quicksort double a, only indices i */
-static void fr_quicksort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
+static void fr_quicksort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
 
 /* Fast calculation of ranks of a double vector, assigning average rank to ties
@@ -67,8 +67,7 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     /* double because "average" */
     SEXP s_ranks = PROTECT(allocVector(REALSXP, n));
     double *ranks = REAL(s_ranks);
-    /*MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));*/
-    int *indx = (int *) R_alloc(n, sizeof(int));
+    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
     /* pre-fill indx with index from 0..n-1 */
     for (MY_SIZE_T i = 0; i < n; ++i)
         indx[i] = i;
@@ -124,7 +123,7 @@ SEXP fastrank_num_avg_(SEXP s_x) {
  * vector of indices.  the vector must already be filled with 0..n-1
  */
 
-static void fr_quicksort_double_i_ (double * const a,
+static void fr_quicksort_double_i_ (const double * a,
                                     MY_SIZE_T indx[],
                                     const MY_SIZE_T n) {
     double p;
@@ -174,7 +173,7 @@ static void fr_quicksort_double_i_ (double * const a,
 #define N_GAPS 16
 #endif
 /* Using Tokuda gaps here */
-static const MY_SIZE_T shell_gaps [N_INCS + 1] = {
+static const MY_SIZE_T shell_gaps [N_GAPS + 1] = {
 #ifdef LONG_VECTOR_SUPPORT
     19903198L,  8845866L,  3931496L,  1747331L,
 #endif
@@ -298,15 +297,17 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 
     if (DEBUG) Rprintf("ties_method = %d\n", ties_method);
 
-    ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
+    MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
+    //ROV_SIZE_T *indx = (ROV_SIZE_T *) R_alloc(n, sizeof(ROV_SIZE_T));
     if (DEBUG) Rprintf("address of indx = 0x%p\n", indx);
 
     switch(sort_method) {
     case R_ORDERVECTOR:
-        R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
+        error("sort.method = 1 (R_orderVector) already off the island");
+        //R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
         break;
     case FR_QUICKSORT:
-        for (int i = 0; i < n; ++i) indx[i] = i;
+        for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
         fr_quicksort_double_i_ (REAL(s_x), indx, n);
         break;
     default:

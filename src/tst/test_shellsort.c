@@ -28,10 +28,11 @@ static void fr_shellsort_double_i_ (double * const a,
     MY_SIZE_T i, it, j, ig, gap;
     double t;
     for (ig = 0; shell_gaps[ig] >= n; ++ig);
-    for (; ig <= N_GAPS; ++ig) {
+    for (; ig < N_GAPS; ++ig) {
         gap = shell_gaps[ig];
+        printf("ig = %d    gap = %d   n = %d\n", ig, gap, n);
+        for (int q = 0; q < n; ++q) printf("%d   ", indx[q]); printf("\n");
         for (i = gap; i < n; ++i) {
-            // arggggs... need to do an indexed shellsort
             t = a[i];
             for (j = i; j >= gap && a[j - gap] > t; j -= gap) {
                 a[j] = a[j - gap];
@@ -40,6 +41,7 @@ static void fr_shellsort_double_i_ (double * const a,
         }
     }
 }
+
 
 double* vrandr(const int low, const int high, const int n);
 
