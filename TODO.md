@@ -3,13 +3,11 @@ TODO
 
 * Benchmark sort routines by creating `fastrank_num_avg` with extra argument choosing among sort methods, and explore 2d space of vector length and relative ties occurrence.  I envision vector length on X and ties fraction on Y, each benchmark result being for 1e6 runs, and each point being a circle coloured by sort method and with diameter related to the difference between mean and median times for that run.
 * Learn how `.Internal` passes arguments and results
-* Benchmark `.C` vs. `.Call`, and find out others' results there
 * Benchmark `.Call("fastrank_", x, ties)` vs. `.Call("fastrank_", x, length(x), ties)`, is it faster to get the length or to extract it internally?
 * Is it faster to byte-compile the R wrapper?
 * Restore and debug complex vector support in `fastrank`
 * Is it OK to do the shortcut evaluation of `ties.method`?
 * Proper makefile for compiling C routines, look into `Makevars` and `Makevars.win` (mentioned in <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-C_002b_002b11-code>)
-* In `fastrank_num_avg`, **still sorting the passed vector**, need to not do that
 * Other C interfaces: how to name these?
   * fastrank, general (but no characters), uses `R_orderVector()`
   * fastrank_numeric_first
@@ -23,6 +21,7 @@ TODO
   * fastrank_integer_random
 * BE FASTER, see README
 * Really must try to use a stable sort, is `R_orderVector` stable?
+* Warn the user of no long vector support, use base R `rank()` ... or is this no longer an issue now that I will abandon `R_orderVector`?
 * What are the errors once sees with incorrect data?
 * Update all these experiences over in the **R-package-utilities** repository.
 
@@ -37,8 +36,10 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
-* Check for bug, if vector ends with ties, is rank calculated as +1 its true value?
-* Warn the user of no long vector support, use base R `rank()`
+* `fr_quicksort_double_i_` does indices only
+* In `fastrank_num_avg`, no longer sorting the passed vector
+* Benchmarked `.C` vs. `.Call`, and found `.Call` is 5-25% faster (faster with shorter vectors)
+* No bugs that I have yet found in the rankings (check for bug, if vector ends with ties, is rank calculated as +1 its true value?)
 * Warn the user that character values are not accepted
 * Test the multiple ties.methods in one function
 * For `fastrank`, checking for character in R wrapper *and* in C code, how much faster is it to avoid one or both of these?  The check in R wrapper happens for all invocations, but the check in C code happens after a `switch` and only if the TYPEOF is actually character, so should be much faster for all cases.  Or is that not true?  Did I move the check earlier so as to avoid the `R_orderVector` call?
