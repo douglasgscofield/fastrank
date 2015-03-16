@@ -9,7 +9,7 @@ TODO
 * Proper makefile for compiling C routines, look into `Makevars` and `Makevars.win` (mentioned in <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-C_002b_002b11-code>)
 * Do we need -ffast-math or some other optimisation flags?  Which is better -O2, -O3, etc?
 * Other C interfaces: how to name these?
-  * fastrank, general (but no characters), uses `R_orderVector()`
+  * fastrank, general
   * fastrank_numeric_first
   * fastrank_numeric_max
   * fastrank_numeric_min
@@ -19,8 +19,6 @@ TODO
   * fastrank_integer_max
   * fastrank_integer_min
   * fastrank_integer_random
-* BE FASTER, see README
-* Really must try to use a stable sort, is `R_orderVector` stable?
 * What are the errors once sees with incorrect data?
 * Update all these experiences over in the **R-package-utilities** repository.
 
@@ -35,8 +33,9 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
-* We have long vector support.
-* Indexed shell sort now works, and offers three gap methods: Ciura, Sedgwick, Tokuda
+* We have settled on Quicksort with insertion sort when vector length &le; 20
+* We have long vector support
+* Indexed shell sort now works, and offers three gap methods: Ciura, Sedgwick, Tokuda, and also some hybrids that switched to insertion sort below gap length about 20.  None of these was faster than Quicksort plus insertion sort, so they were dropped.  See `src/fastrank.c.bak2`.
 * `fr_quicksort_double_i_` does indices only
 * In `fastrank_num_avg`, no longer sorting the passed vector
 * Benchmarked `.C` vs. `.Call`, and found `.Call` is 5-25% faster (faster with shorter vectors)

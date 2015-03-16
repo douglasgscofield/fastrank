@@ -299,9 +299,16 @@ Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 ### Which type of sort?
 
-**Result so far:** Quicksort and shellsort are faster than `R_orderVector`, and get faster with vector length.  Shellsort with Ciura-gaps is a touch faster 10 to 100 vector length, but quicksort is definitely faster at 10000 vector length.  This gaps issue definitely needs some more work.
+This is now completed, so...
 
-According to <http://en.wikipedia.org/wiki/Insertion_sort>, insertion sort is faster than quicksort when there are less than about 10 elements.  Should I implement this speedup?
+#### Summary of sort routine benchmarking
+
+* For `n=10` vectors, all methods perform similarly, and the advantage of `.Internal(rank(...))` seems to be in the call interface.
+* For `n=100` vectors, the methods still perform similarly, but the Quicksort with insertion sort is just a bit better than the rest.  Sedgwick shellsort is the best of those, with Ciura2 and Tokuda2 better than their default versions.  The advantage of `.Internal(rank(...))` still exists and is still sizable.
+* For `n=10000` vectors, the methods start to separate.  Quicksort with insertion sort is clearly the best and is anywhere from 50% faster (random data) to 100% faster (worst-case data) than `.Internal(rank(...))`.  Sedgwick shellsort is still the best of those.  All methods are at least twice as fast as `rank(...)`.
+* All Quicksort and shellsort methods are faster than `R_orderVector`, and get faster with vector length.
+
+R's default Sedgwick shellsort is very good, but quicksort is better especially with the insertion sort speedup.  That is what I will go with.
 
 ####  R_orderVector vs. Quicksort
 
@@ -460,7 +467,7 @@ Unit: microseconds
  fastrank(yyy, sort = 5L) 1042.63 1070.03 1140.68 1087.28 1112.41 6823.2  1000
 ```
 
-### Shellsort vs. Quicksort with insertion-sort shortcuts
+#### Shellsort vs. Quicksort with insertion-sort shortcuts
 
 After some research I've adjusted Quicksort so below a certain vector length
 cutoff (the default 2 for `2L`, 11 for `6L`, 21 for `7L`), it switches to
@@ -592,6 +599,54 @@ Unit: microseconds
   fastrank(y, sort = 7L)  582.45  596.44  630.69  598.84  610.11  9061.4 10000
 ```
 
+#### Shellsorts and Quicksorts with worst-case vectors
+
+So I constructed some worst-case vectors.  I see they are all very similar with 10 vectors, Quicksort is starting to show its quality with 100 vectors, and clearly is best with 10000 vectors.  Sedgwick shellsort (`4L`) is also quite good.
+
+```R
+> y.rev <- as.numeric(10:1)
+> yy.rev <- as.numeric(100:1)
+> yyy.rev <- as.numeric(10000:1)
+> y <- y.rev
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=3L), fastrank(y, sort=8L), fastrank(y, sort=4L), fastrank(y, sort=9L), fastrank(y, sort=5L), fastrank(y, sort=10L), fastrank(y, sort=7L), times=100000)
+Unit: nanoseconds
+                    expr   min    lq    mean median    uq      max neval
+                 rank(y) 22643 25508 27689.9  26116 26815 42959798 1e+05
+             rank_new(y)   722  1164  1343.2   1274  1424  1207910 1e+05
+  fastrank(y, sort = 3L)  3300  3823  4611.2   4109  4478  6201784 1e+05
+  fastrank(y, sort = 8L)  3323  3824  4454.7   4110  4478  1237219 1e+05
+  fastrank(y, sort = 4L)  3348  3809  4472.4   4098  4470  1248926 1e+05
+  fastrank(y, sort = 9L)  3329  3820  4517.6   4108  4480  1261753 1e+05
+  fastrank(y, sort = 5L)  3336  3825  4468.8   4110  4473  1238837 1e+05
+ fastrank(y, sort = 10L)  3329  3816  4523.5   4101  4468  3507769 1e+05
+  fastrank(y, sort = 7L)  3289  3800  4456.5   4081  4451  1281328 1e+05
+> y <- yy.rev
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=3L), fastrank(y, sort=8L), fastrank(y, sort=4L), fastrank(y, sort=9L), fastrank(y, sort=5L), fastrank(y, sort=10L), fastrank(y, sort=7L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean median     uq     max neval
+                 rank(y) 27.784 30.550 35.9258 31.223 32.010  6435.7 1e+05
+             rank_new(y)  2.675  3.167  3.6250  3.298  3.445  5508.2 1e+05
+  fastrank(y, sort = 3L)  4.644  5.260  6.9515  5.539  5.895  9140.1 1e+05
+  fastrank(y, sort = 8L)  4.809  5.391  6.4024  5.672  6.028  5857.7 1e+05
+  fastrank(y, sort = 4L)  4.560  5.158  6.4265  5.436  5.795  9400.7 1e+05
+  fastrank(y, sort = 9L)  4.802  5.403  6.8206  5.684  6.043  5886.2 1e+05
+  fastrank(y, sort = 5L)  4.705  5.270  6.6419  5.551  5.907  5483.9 1e+05
+ fastrank(y, sort = 10L)  4.733  5.352  6.4076  5.634  5.992  5410.9 1e+05
+  fastrank(y, sort = 7L)  4.265  4.843  6.3471  5.120  5.474 44320.7 1e+05
+> y <- yyy.rev
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=3L), fastrank(y, sort=8L), fastrank(y, sort=4L), fastrank(y, sort=9L), fastrank(y, sort=5L), fastrank(y, sort=10L), fastrank(y, sort=7L), times=1000)
+Unit: microseconds
+                    expr    min     lq   mean median     uq    max neval
+                 rank(y) 561.89 581.20 658.14 583.80 600.22 8472.5  1000
+             rank_new(y) 278.82 284.37 316.05 285.05 287.29 8074.6  1000
+  fastrank(y, sort = 3L) 222.70 231.35 255.60 232.28 234.04 7869.5  1000
+  fastrank(y, sort = 8L) 216.56 225.77 243.15 227.33 228.93 8012.5  1000
+  fastrank(y, sort = 4L) 170.21 178.77 195.90 179.72 181.16 7609.5  1000
+  fastrank(y, sort = 9L) 191.88 202.45 229.56 204.73 207.46 8685.1  1000
+  fastrank(y, sort = 5L) 226.71 234.98 277.30 235.82 238.12 8731.2  1000
+ fastrank(y, sort = 10L) 212.28 220.69 236.66 221.96 223.86 8205.7  1000
+  fastrank(y, sort = 7L) 114.00 122.39 136.66 123.23 124.45 8202.6  1000
+```
 
 ### Which is faster, .Call or .C?
 
