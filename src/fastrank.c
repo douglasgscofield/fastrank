@@ -32,23 +32,24 @@ SEXP fastrank_num_avg_(SEXP s_x);
 
 /* FUNCTION REGISTRATION *********************************/
 
-// Registering the routines with R
 static R_CallMethodDef callMethods[] = {
     {"fastrank_",         (DL_FUNC) &fastrank_,         3},
     {"fastrank_num_avg_", (DL_FUNC) &fastrank_num_avg_, 1},
     {NULL, NULL, 0}
 };
+
 void R_init_fastrank(DllInfo *info) {
     R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 }
 
-
-
+ 
 
 /*************************************************************************
  * SORTING
  *
  */
+
+/* Insertion sort, used for short sort jobs */
 
 /* Quicksort from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort 
  * modified to return a vector of indices and not modify the array of
@@ -67,7 +68,6 @@ static void fr_quicksort_double_i_ (const double * a,
         while (a[indx[i]] < p) i++;
         while (p < a[indx[j]]) j--;
         if (i >= j) break;
-        // swap indices
         it = indx[i]; indx[i] = indx[j]; indx[j] = it;
     }
     fr_quicksort_double_i_(a, indx,     i    );
@@ -141,7 +141,7 @@ static const MY_SIZE_T sedgwick_gaps [N_GAPS_SEDGWICK] = {
 static const MY_SIZE_T tokuda_gaps [N_GAPS_TOKUDA] = {
 #ifdef LONG_VECTOR_SUPPORT
     1696204147864L, 753868510162L, 335052671183L, 148912298303L, 66183243690L,
-    29414774973L, 13073233321L, 5810325920L, 2582367076L,
+    29414774973L,   13073233321L,  5810325920L,   2582367076L,
 #endif
     1147718700, 510097200, 226709866, 100759940, 44782196,
     19903198,   8845866,   3931496,   1747331,   776591,
@@ -273,8 +273,8 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 
     switch(sort_method) {
     case R_ORDERVECTOR:
-        error("sort.method = 1 (R_orderVector) already off the island");
-        //R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE);
+        error("sort.method 1 (R_orderVector) already off the island");
+        /* R_orderVector(indx, n, Rf_lang1(s_x), TRUE, FALSE); */
         break;
     case FR_QUICKSORT:
         for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
@@ -302,33 +302,23 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
         for (int i = 0; i < n; ++i) Rprintf("%d ", indx[i]);
         Rprintf("\n");
     }
-    // indx[i] holds the index of the value in s_x that belongs in position i,
-    // e.g., indx[0] holds the position in s_x of the first value
+    /* indx[i] holds the index of the value in s_x that belongs in position i,
+     * e.g., indx[0] holds the position in s_x of the first value
+     */
 
     SEXP s_ranks = NULL;  /* return value, allocated below */
 
-/* for accessing the value of the vector through the index entry */
-#define XI(_i_) x[indx[_i_]]
-/* comparison for equality for each vector type */
-#undef EQUAL
-/* general type of vector passed in */
-#undef TYPE
-/* general R API conversion for type of vector passed in */
-#undef TCONV
-/* ensure no collisions with macro arg names */
-#undef __loc__
-/* ties method, see #define's below */
-#undef __TIES__
-/* type of vector passed in */
-#undef __TYPE
-/* R API conversion for type of vector passed in */
-#undef __TCONV
-/* type of rank returned */
-#undef __RTYPE
-/* R API type of rank returned */
-#undef __R_RTYPE
-/* R API conversion for type of rank returned */
-#undef __R_TCONV
+#define XI(_i_) x[indx[_i_]]   /* accessing the vector through the index */
+#undef EQUAL       /* comparison for equality for each vector type */
+#undef TYPE        /* general type of vector passed in */
+#undef TCONV       /* general R API conversion for type of vector passed in */
+#undef __loc__     /* ensure no collisions with macro arg names */
+#undef __TIES__    /* ties method, see #define's below */
+#undef __TYPE      /* type of vector passed in */
+#undef __TCONV     /* R API conversion for type of vector passed in */
+#undef __RTYPE     /* type of rank returned */
+#undef __R_RTYPE   /* R API type of rank returned */
+#undef __R_TCONV   /* R API conversion for type of rank returned */
 
 /* ties' rank is the minimum of their ranks */
 #define FR_ties_min(__RTYPE, __loc__) \
@@ -606,6 +596,4 @@ SEXP fastrank_num_avg_(SEXP s_x) {
     UNPROTECT(1);
     return s_ranks;
 }
-
-
 
