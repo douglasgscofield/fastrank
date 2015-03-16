@@ -4,7 +4,7 @@
 \alias{fastrank}
 \title{Rank vectors with low overhead}
 \usage{
-fastrank(x, ties.method = "average", sort.method = 1L)
+fastrank(x, ties.method = "average")
 }
 \arguments{
 \item{x}{A vector of values to rank.  Note that character vectors are not
