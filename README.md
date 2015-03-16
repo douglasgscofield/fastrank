@@ -358,6 +358,8 @@ Unit: microseconds
 
 Now to add shellsort, with three implementations of gap distances, following the Wikipedia page for shellsort: Ciura (`3L`), Sedgwick (`4L`, R uses this), and Tokuda (`5L`).  This is in addition to quicksort (`2L`).
 
+**Result:** Sedgwick gaps work best for 10000 (and presumably longer) vectors, while Ciura and Tokuda are better for shorter vectors with Ciura very slightly better.
+
 ```R
 > microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), times=100000)
 Unit: nanoseconds
@@ -387,7 +389,9 @@ Unit: microseconds
  fastrank(yyy, sort = 4L)  961.48  990.81 1064.55 1007.32 1030.55  7599.5 10000
  fastrank(yyy, sort = 5L) 1064.45 1096.13 1162.95 1111.71 1137.29  7471.9 10000
 ```
+
 I'll do a recreation of `y`, `yy` and `yyy` and see if it changes:
+
 ```R
 > yyy = as.double(sample(10000, 10000, replace=TRUE))
 > yy = as.double(sample(100, 100, replace=TRUE))
@@ -420,7 +424,9 @@ Unit: microseconds
  fastrank(yyy, sort = 4L)  964.95  985.61 1070.32 1006.85 1033.01 6733.0  1000
  fastrank(yyy, sort = 5L) 1071.72 1097.27 1170.60 1117.76 1142.90 6980.9  1000
 ```
+
 and without repeats:
+
 ```R
 > y = as.double(sample(10, 10, replace=FALSE))
 > yy = as.double(sample(100, 100, replace=FALSE))
@@ -454,6 +460,137 @@ Unit: microseconds
  fastrank(yyy, sort = 5L) 1042.63 1070.03 1140.68 1087.28 1112.41 6823.2  1000
 ```
 
+### Shellsort vs. Quicksort with insertion-sort shortcuts
+
+After some research I've adjusted Quicksort so below a certain vector length
+cutoff (the default 2 for `2L`, 11 for `6L`, 21 for `7L`), it switches to
+insertion sort.  Note this will apply to all the subiterations of the Quicksort
+call tree as well.
+
+**Result:** It looks like the cutoff version is definitely best, with the 21 version best of the two non-trivial versions.  Now it is a competition between Shellsort with Ciura gaps and Quicksort with insertion-sort cutoff of 21.
+
+```R
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), fastrank(y, sort=6L), fastrank(y, sort=7L), times=100000)
+Unit: nanoseconds
+                   expr   min    lq    mean median    uq      max neval
+                rank(y) 22325 24726 26989.0  25282 25938 34553695 1e+05
+            rank_new(y)   732  1131  1302.0   1246  1397  1090550 1e+05
+ fastrank(y, sort = 2L)  3318  3787  4900.7   4081  4470 34794533 1e+05
+ fastrank(y, sort = 3L)  3262  3746  4402.3   4038  4425  1188386 1e+05
+ fastrank(y, sort = 4L)  3247  3746  4490.5   4044  4441  2693303 1e+05
+ fastrank(y, sort = 5L)  3275  3747  4462.1   4041  4431  1210320 1e+05
+ fastrank(y, sort = 6L)  3230  3721  4483.9   4017  4409  1153417 1e+05
+ fastrank(y, sort = 7L)  3263  3719  4448.6   4011  4400  1812214 1e+05
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy, sort=2L), fastrank(yy, sort=3L), fastrank(yy, sort=4L), fastrank(yy, sort=5L), fastrank(yy, sort=6L), fastrank(yy, sort=7L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean median     uq     max neval
+                rank(yy) 27.719 30.641 37.1657 31.354 32.247 37732.8 1e+05
+            rank_new(yy)  2.897  3.447  3.9594  3.592  3.746  3871.8 1e+05
+ fastrank(yy, sort = 2L)  5.129  6.115  7.5281  6.476  7.005  4148.1 1e+05
+ fastrank(yy, sort = 3L)  4.792  5.925  7.0567  6.347  6.973  4228.5 1e+05
+ fastrank(yy, sort = 4L)  4.742  5.853  7.0445  6.233  6.783  4019.8 1e+05
+ fastrank(yy, sort = 5L)  4.759  5.893  7.2277  6.295  6.891  3975.7 1e+05
+ fastrank(yy, sort = 6L)  4.481  5.217  6.2938  5.515  5.929  4015.2 1e+05
+ fastrank(yy, sort = 7L)  4.471  5.165  6.3492  5.458  5.845  4381.4 1e+05
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=2L), fastrank(yyy, sort=3L), fastrank(yyy, sort=4L), fastrank(yyy, sort=5L), fastrank(yyy, sort=6L), fastrank(yyy, sort=7L), times=10000)
+Unit: microseconds
+                     expr     min      lq    mean  median      uq     max neval
+                rank(yyy) 1298.77 1327.51 1430.19 1342.53 1383.03 39838.8 10000
+            rank_new(yyy) 1014.79 1025.12 1072.15 1032.54 1060.19  7252.4 10000
+ fastrank(yyy, sort = 2L)  764.42  783.65  827.70  788.46  809.03  7073.0 10000
+ fastrank(yyy, sort = 3L) 1021.94 1035.91 1082.38 1038.91 1068.78  7807.9 10000
+ fastrank(yyy, sort = 4L)  851.50  865.56  907.02  868.46  892.03  7179.7 10000
+ fastrank(yyy, sort = 5L) 1034.92 1049.03 1095.74 1052.08 1082.37  7108.3 10000
+ fastrank(yyy, sort = 6L)  621.66  639.22  677.92  643.24  661.06 37054.7 10000
+ fastrank(yyy, sort = 7L)  570.68  586.12  626.09  589.70  606.95  6908.6 10000
+```
+
+For vectors with no duplicates:
+
+```R
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=2L), fastrank(y, sort=3L), fastrank(y, sort=4L), fastrank(y, sort=5L), fastrank(y, sort=6L), fastrank(y, sort=7L), times=100000)
+Unit: nanoseconds
+                   expr   min    lq    mean median    uq      max neval
+                rank(y) 22448 24912 28109.5  25502 26226 35386821 1e+05
+            rank_new(y)   710  1132  1334.1   1249  1404  1144394 1e+05
+ fastrank(y, sort = 2L)  3335  3821  4553.3   4120  4525  1183310 1e+05
+ fastrank(y, sort = 3L)  3276  3778  4496.1   4076  4476  1167939 1e+05
+ fastrank(y, sort = 4L)  3256  3775  4566.0   4079  4487  1182768 1e+05
+ fastrank(y, sort = 5L)  3290  3782  4546.1   4079  4474  1157244 1e+05
+ fastrank(y, sort = 6L)  3243  3752  4515.3   4050  4448  1930598 1e+05
+ fastrank(y, sort = 7L)  3241  3749  4513.5   4048  4447  1807156 1e+05
+> microbenchmark(rank(yy), rank_new(yy), fastrank(yy, sort=2L), fastrank(yy, sort=3L), fastrank(yy, sort=4L), fastrank(yy, sort=5L), fastrank(yy, sort=6L), fastrank(yy, sort=7L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean  median     uq     max neval
+                rank(yy) 27.727 30.597 36.1604 31.3020 32.181 38366.0 1e+05
+            rank_new(yy)  2.910  3.437  3.8273  3.5780  3.725  5901.0 1e+05
+ fastrank(yy, sort = 2L)  5.019  6.043  7.3058  6.4070  6.923  4566.8 1e+05
+ fastrank(yy, sort = 3L)  4.722  5.813  7.0080  6.2195  6.823  4035.7 1e+05
+ fastrank(yy, sort = 4L)  4.634  5.675  7.0901  6.0500  6.585  4032.0 1e+05
+ fastrank(yy, sort = 5L)  4.756  5.902  7.3255  6.3250  6.946  4254.4 1e+05
+ fastrank(yy, sort = 6L)  4.511  5.285  6.7856  5.5910  5.994 37152.1 1e+05
+ fastrank(yy, sort = 7L)  4.473  5.172  6.3126  5.4630  5.836  4198.7 1e+05
+> microbenchmark(rank(yyy), rank_new(yyy), fastrank(yyy, sort=2L), fastrank(yyy, sort=3L), fastrank(yyy, sort=4L), fastrank(yyy, sort=5L), fastrank(yyy, sort=6L), fastrank(yyy, sort=7L), times=10000)
+Unit: microseconds
+                     expr     min      lq    mean  median      uq     max neval
+                rank(yyy) 1233.49 1263.47 1345.28 1268.61 1299.94  7671.6 10000
+            rank_new(yyy)  951.45  962.99  994.51  965.10  984.29  7069.6 10000
+ fastrank(yyy, sort = 2L)  746.75  768.49  808.69  773.22  788.25 36223.9 10000
+ fastrank(yyy, sort = 3L) 1000.74 1015.58 1056.07 1017.83 1038.22  7216.9 10000
+ fastrank(yyy, sort = 4L)  827.13  841.99  883.14  844.40  862.52  7768.2 10000
+ fastrank(yyy, sort = 5L) 1019.41 1032.75 1079.63 1035.01 1054.63 40789.9 10000
+ fastrank(yyy, sort = 6L)  639.68  657.38  698.54  661.24  673.58  7215.6 10000
+ fastrank(yyy, sort = 7L)  582.43  598.85  637.22  602.31  614.47  8150.8 10000
+```
+
+#### Shellsort and Quicksort vs. Shellsort with the small gaps dropped
+
+I wondered whether Shellsort with the last small gaps dropped (this shifting to insertion sort a bit earlier) would work better, so I created sort methods `8L` vs. `3L`, `9L` vs. `4L`, and `10L` vs. `5L` which do this.
+
+**Result:** It didn't really affect Ciura or Tokuda for 10 and 100 vectors, it slowed Sedgwick down most notably for 100 vectors.  Sedgwick is still best for 10000 vectors no matter which gap scheme, and it sped up Ciura and Tokuda for 10000 vectors.  Quicksort still wins for 10000 vectors hands-down, and pretty much wins for all vector lengths.
+
+```R
+> y.orig <- y; yy.orig <- yy; yyy.orig <- yyy; rm(y,yy,yyy)
+> y <- y.orig
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=3L), fastrank(y, sort=8L), fastrank(y, sort=4L), fastrank(y, sort=9L), fastrank(y, sort=5L), fastrank(y, sort=10L), fastrank(y, sort=7L), times=100000)
+Unit: nanoseconds
+                    expr   min    lq    mean median      uq      max neval
+                 rank(y) 22715 25460 27755.2  26056 26747.0 42516458 1e+05
+             rank_new(y)   724  1149  1389.1   1261  1416.0  1231880 1e+05
+  fastrank(y, sort = 3L)  3316  3785  4491.5   4072  4460.0  3759215 1e+05
+  fastrank(y, sort = 8L)  3308  3779  4554.4   4069  4460.0  3606849 1e+05
+  fastrank(y, sort = 4L)  3320  3772  4588.0   4063  4461.0  4635569 1e+05
+  fastrank(y, sort = 9L)  3302  3770  4452.9   4063  4455.5  1266400 1e+05
+  fastrank(y, sort = 5L)  3321  3781  4422.2   4066  4455.0  1230516 1e+05
+ fastrank(y, sort = 10L)  3334  3773  4421.2   4060  4442.0  1259044 1e+05
+  fastrank(y, sort = 7L)  3308  3761  4424.0   4049  4439.0  1248294 1e+05
+> y <- yy.orig
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=3L), fastrank(y, sort=8L), fastrank(y, sort=4L), fastrank(y, sort=9L), fastrank(y, sort=5L), fastrank(y, sort=10L), fastrank(y, sort=7L), times=100000)
+Unit: microseconds
+                    expr    min     lq    mean median     uq     max neval
+                 rank(y) 28.074 31.430 36.6222 32.242 33.227  8813.2 1e+05
+             rank_new(y)  2.914  3.495  4.4505  3.647  3.808 44816.2 1e+05
+  fastrank(y, sort = 3L)  4.889  5.947  7.4753  6.372  6.978  5400.0 1e+05
+  fastrank(y, sort = 8L)  5.127  6.070  7.2342  6.407  6.873  6047.7 1e+05
+  fastrank(y, sort = 4L)  4.870  5.912  7.2208  6.299  6.836  6137.8 1e+05
+  fastrank(y, sort = 9L)  5.319  6.254  7.5620  6.577  7.023  5553.2 1e+05
+  fastrank(y, sort = 5L)  4.912  5.988  7.7511  6.405  6.982  7715.4 1e+05
+ fastrank(y, sort = 10L)  5.107  6.068  7.5910  6.412  6.879  6172.0 1e+05
+  fastrank(y, sort = 7L)  4.813  5.752  7.2376  6.066  6.504  5860.8 1e+05
+> y <- yyy.orig
+> microbenchmark(rank(y), rank_new(y), fastrank(y, sort=3L), fastrank(y, sort=8L), fastrank(y, sort=4L), fastrank(y, sort=9L), fastrank(y, sort=5L), fastrank(y, sort=10L), fastrank(y, sort=7L), times=10000)
+Unit: microseconds
+                    expr     min      lq    mean  median      uq     max neval
+                 rank(y) 1298.67 1325.37 1408.24 1334.21 1362.49 42478.6 10000
+             rank_new(y) 1012.83 1023.60 1056.65 1027.56 1046.35  9209.7 10000
+  fastrank(y, sort = 3L) 1024.31 1036.94 1081.75 1039.58 1059.96  9365.8 10000
+  fastrank(y, sort = 8L)  919.52  934.10  969.10  936.01  954.42  9413.3 10000
+  fastrank(y, sort = 4L)  855.74  867.79  909.19  870.33  887.65 45789.0 10000
+  fastrank(y, sort = 9L)  857.37  869.56  911.68  872.05  890.17  9104.0 10000
+  fastrank(y, sort = 5L) 1037.06 1050.97 1089.12 1053.59 1073.25  8925.2 10000
+ fastrank(y, sort = 10L)  927.02  940.44  980.17  942.36  960.35  8980.9 10000
+  fastrank(y, sort = 7L)  582.45  596.44  630.69  598.84  610.11  9061.4 10000
+```
 
 
 ### Which is faster, .Call or .C?
