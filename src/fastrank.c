@@ -18,7 +18,7 @@
 
 static void fr_quicksort_double_i_(const double * a,
                                    MY_SIZE_T indx[],
-                                   const MY_SIZE_T n):
+                                   const MY_SIZE_T n);
 
 SEXP fastrank_(SEXP s_x, SEXP s_tm);
 SEXP fastrank_num_avg_(SEXP s_x);
