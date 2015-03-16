@@ -10,4 +10,5 @@
 ^NEWS.md$
 ^TODO.md$
 ^src/tst$
+^src/.*\.bak.*$
 ^.*\.dSYM$
