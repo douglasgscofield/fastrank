@@ -692,14 +692,87 @@ Unit: microseconds
   fastrank_num_avg_C(yyy)  806.524  824.8475  891.3752  839.8600  863.3015  3237.999  1000
 ```
 
+### Which is faster, getting length internally or externally?
+
+**Result:**  Internally.
+
+The `.Internal(rank(...))` interface requires the length of `x` to be passed as
+a separate argument.  I now suspect this is because the internal interface is a
+high-performance direct-to-C API that quickly bypasses R objects.  In any
+event, I was wondering whether simply passing `length(x)` might be faster than
+getting length from `SEXP s_x`.  I wanted to use the direct interface to have
+as few things as possible interfering.  Below, `fastrank_num_avg` is the usual
+interface while `fastrank_num_avg2` passes the length as an extra argument.
+The answer is clear, passing the extra argument is slower.  The `y` vectors 
+used for benchmarking are worst-case.
+
+```R
+> microbenchmark(rank(y), rank_new(y), fastrank_num_avg(y), fastrank_num_avg2(y), times=100000)
+Unit: nanoseconds
+                 expr   min    lq    mean median      uq      max neval
+              rank(y) 22128 24510 26630.9  25127 25816.5 40674852 1e+05
+          rank_new(y)   721  1123  1328.2   1285  1453.0  1003306 1e+05
+  fastrank_num_avg(y)  2988  3697  4472.8   4043  5189.0  2450161 1e+05
+ fastrank_num_avg2(y)  3179  3886  4737.2   4233  5379.5  3907410 1e+05
+> y <- yy.rev
+> microbenchmark(rank(y), rank_new(y), fastrank_num_avg(y), fastrank_num_avg2(y), times=100000)
+Unit: microseconds
+                 expr    min     lq    mean median     uq     max neval
+              rank(y) 27.250 29.589 34.2975 30.234 30.964  6050.2 1e+05
+          rank_new(y)  2.650  3.128  3.7628  3.297  3.447  5429.5 1e+05
+  fastrank_num_avg(y)  3.956  4.658  5.8471  4.984  6.161  4740.8 1e+05
+ fastrank_num_avg2(y)  4.128  4.840  6.6161  5.168  6.360 42977.4 1e+05
+> y <- yyy.rev
+> microbenchmark(rank(y), rank_new(y), fastrank_num_avg(y), fastrank_num_avg2(y), times=1000)
+Unit: microseconds
+                 expr    min     lq   mean median     uq     max neval
+              rank(y) 559.36 577.59 696.53 579.21 591.89 40264.5  1000
+          rank_new(y) 278.34 283.83 303.69 284.41 287.30  5127.7  1000
+  fastrank_num_avg(y) 113.86 121.30 139.58 122.20 123.57  4386.0  1000
+ fastrank_num_avg2(y) 113.39 121.44 152.71 122.47 123.80  5025.4  1000
+```
+
+
+
+## `fastrank` vs. `fastrank_num_avg`
+
+The benefit of the direct interface more clear with shorter vectors, but the
+difference really isn't that great.  This needs more benchmarking.
+
+```R
+> microbenchmark(rank(y), rank_new(y), fastrank(y), fastrank_num_avg(y), times=100000)
+Unit: nanoseconds
+                expr   min    lq    mean median    uq      max neval
+             rank(y) 21710 24807 26996.5  25440 26109 39123361 1e+05
+         rank_new(y)   715  1153  1375.0   1325  1486  1113322 1e+05
+         fastrank(y)  3169  3884  4671.5   4248  5449  1014344 1e+05
+ fastrank_num_avg(y)  3057  3750  4514.5   4099  5239  1003286 1e+05
+> y <- yy.rev
+> microbenchmark(rank(y), rank_new(y), fastrank(y), fastrank_num_avg(y), times=100000)
+Unit: microseconds
+                expr    min     lq    mean median     uq     max neval
+             rank(y) 27.090 29.597 34.5559 30.266 31.002 42357.5 1e+05
+         rank_new(y)  2.661  3.135  3.4954  3.300  3.446  4464.5 1e+05
+         fastrank(y)  4.071  4.774  6.2388  5.121  6.374  4602.3 1e+05
+ fastrank_num_avg(y)  3.955  4.648  5.9011  4.984  6.142  4852.8 1e+05
+> y <- yyy.rev
+> microbenchmark(rank(y), rank_new(y), fastrank(y), fastrank_num_avg(y), times=1000)
+Unit: microseconds
+                expr    min     lq   mean median     uq    max neval
+             rank(y) 558.40 577.92 653.69 579.69 596.00 6964.1  1000
+         rank_new(y) 278.58 283.77 310.77 284.40 286.38 5609.6  1000
+         fastrank(y) 112.60 120.73 137.01 122.12 123.72 5487.1  1000
+ fastrank_num_avg(y) 112.84 120.83 148.52 122.00 123.65 6271.6  1000
+```
+
 ## Remaining performance questions
 
-Of course I want to squeeze as much time as I can, so need to explore an updated `fastrank_num_avg` since the direct entries *should* always be fastest, but there are a few more general points to explore. 
+Of course I want to squeeze as much time as I can, so need to explore an
+updated `fastrank_num_avg` since the direct entries *should* always be fastest,
+but there are a few more general points to explore. 
 
-* Is it faster to compute length of `x` internally, as I do now, or accept it as a passed argument like `.Internal(rank(...))`?
 * In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
 * Does it make a difference to byte-compile the R wrapper?
-
 
 
 

@@ -62,11 +62,20 @@ static void fr_quicksort_double_i_ (const double * a,
     MY_SIZE_T i, j, it;
     if (n <= QUICKSORT_INSERTION_CUTOFF) {
         /* use insertion sort */
+        if (DEBUG) {
+            Rprintf("insertion start\n");
+            for (i = 0; i < n; ++i) Rprintf("i %d indx %d a %f\n", i, indx[i], a[indx[i]]);
+        }
         for (i = 1; i < n; ++i) {
             it = indx[i];
             for (j = i; j > 0 && a[indx[j - 1]] > a[it]; --j) {
                 indx[j] = indx[j - 1];
             }
+            indx[j] = it;
+        }
+        if (DEBUG) {
+            Rprintf("insertion end\n");
+            for (i = 0; i < n; ++i) Rprintf("i %d indx %d a %f\n", i, indx[i], a[indx[i]]);
         }
         return;
     }
@@ -143,6 +152,12 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm) {
     /* allocate index and fill with 0..n-1 */
     MY_SIZE_T *indx = (MY_SIZE_T *) R_alloc(n, sizeof(MY_SIZE_T));
     for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
+
+    if (DEBUG) {
+        Rprintf("sort return indx:\n");
+        for (int i = 0; i < n; ++i) Rprintf("%d ", indx[i]);
+        Rprintf("\n");
+    }
 
     /* sort indices!! */
     fr_quicksort_double_i_(REAL(s_x), indx, n);
