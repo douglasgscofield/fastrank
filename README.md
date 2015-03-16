@@ -771,6 +771,7 @@ Of course I want to squeeze as much time as I can, so need to explore an
 updated `fastrank_num_avg` since the direct entries *should* always be fastest,
 but there are a few more general points to explore. 
 
+* What does GC Torture mean when it comes to benchmarking?
 * In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
 * Does it make a difference to byte-compile the R wrapper?
 

@@ -2,7 +2,6 @@ TODO
 ----
 
 * Learn how `.Internal` passes arguments and results
-* Benchmark `.Call("fastrank_", x, ties)` vs. `.Call("fastrank_", x, length(x), ties)`, is it faster to get the length or to extract it internally?
 * Is it faster to byte-compile the R wrapper?
 * Restore and debug complex vector support in `fastrank`
 * Is it OK to do the shortcut evaluation of `ties.method`?
@@ -33,6 +32,7 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
+* It is slower to pass length separately, `.Call("fastrank_", x, ties)` is faster than `.Call("fastrank_", x, length(x), ties)`
 * We have settled on Quicksort with insertion sort when vector length &le; 20
 * We have long vector support
 * Indexed shell sort now works, and offers three gap methods: Ciura, Sedgwick, Tokuda, and also some hybrids that switched to insertion sort below gap length about 20.  None of these was faster than Quicksort plus insertion sort, so they were dropped.  See `src/fastrank.c.bak2`.
