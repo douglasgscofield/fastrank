@@ -48,12 +48,20 @@ void R_init_fastrank(DllInfo *info) {
  * benchmarking I intend to do.
  *
  * Quicksort from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort
- * modified two ways:
+ * and especially Wikipedia modified two ways:
  *
  * 1. Return a vector of indices and not modify the array of values a[],
  * which requires that the indx[] vector is pre-allocated and filled 0..n-1
  *
  * 2. Use insertion sort for vectors length <= QUICKSORT_INSERTION_CUTOFF
+ *
+ * Note the papers and resources (esp Sedgwick) I have collected, the LESSER
+ * loops should probably be changed to <= to avoid pathological behaviour.
+ * Also if a[indx[i]] == a[indx[j]] then they should only be swapped if 
+ * j < i.  That might be enough to make it stable...
+ *
+ * Also note the Dual Pivot Quicksort papers, that might be the truly
+ * best way to go.
  */
 
 #define QUICKSORT_INSERTION_CUTOFF 20
