@@ -58,64 +58,100 @@ Unit: microseconds
  rank_new(yyy)  955.013  964.9215 1002.81  967.849  992.6315 6072.219  1000
 ```
 
-## `fastrank` API
 
-I can use the same API as `rank`:
 
-```R
-rank(x, na.last = TRUE, ties.method = c("average", "first",
-                                        "random", "max", "min"))
+`fastrank` API
+==============
 
-```
-
-or can duplicate the internal API:
+The general interface:
 
 ```R
-.Internal(rank(x, length(x), ties.method = c("average", "max", "min"))
+fastrank(x, ties.method = c("average", "first", "random", "max", "min"))
 ```
 
-(note that base `rank` handles `"first"` and `"random"` in R code), or I can pursue a third path.  My first C implementation gets the length internally from `x`, and handles all `ties.method` values internally, with an API:
+The direct interfaces bypass data type and `ties.method` determination.
 
 ```R
-fastrank(x, ties.method = "average")
+fastrank_num_avg(x)
+...
 ```
-that sets `ties.method` if not provided and checks against `c("average", "first", "random", "max", "min")` internally.
 
-Benchmarking has shown that the interface through R can cost quite a bit of time, so it may be benchmarking that shows me the best way.
+`fastrank` handles all `ties.method` arguments identically to base `rank`.
+`fastrank` handles `"first"` and `"random"` in C code, so should be much faster
+for these.
 
-The plan
---------
+No `fastrank` entry handles `NA` in data, nor do they accept `character`
+vectors for ranking.  The `Scollate` internal R
+routines for comparing character strings using locale information is not part
+of the R API, and it would probably be a
+bigger job to provide this than the rest of `fastrank`.
 
-R already provides an interface to `orderVector` through user C code via
-[`R_orderVector`][R_orderVector].  I may be able to build on this to provide
-the functions here.  One big advantage is that it ranks an `SEXP`, it is as
-general as the base `rank`.
+If you need to sort `NA` or `character`, use base `rank`.
+
+
+
+Implementation Details
+======================
+
+`fastrank` uses my own code, with some guidance for the basics of e.g., sorting
+routines from Wikipedia.  In the course of writing the package I frequently
+consulted R source for guidance in writing the C language interface, and when
+benchmarking I implemented R's own shellsort for comparison purposes.  The
+repository history can be consulted for details.
+
+The sort routine at the heart is Quicksort, modified to operate on a vector of
+indices rather than the array of values, and also modified to shortcut to an
+insertion sort of vector length equal to or shorter than
+`QUICKSORT_INSERTION_CUTOFF`, currently set to 20.  See benchmarking results
+for much more on sort routine selection.
+
+The main sorting and assigning of ranks is coded in macros, with concrete types
+and comparison functions supplied via macro arguments.  This means that while
+there is less duplication of code features in the source, there is some
+duplication in the final object code.  This is however likely quite fast, and
+datatype-specific optimisations can be applied wherever possible.  I have not
+benchmarked my concrete expansions against a more generic approach, but common
+sense suggests it is faster.
+
+I considered using R's own sorting routines, e.g.,
+[`R_orderVector`][R_orderVector], especially considering it can handle any type
+of atomic `SEXP`, but benchmarking presented below demonstrated that it is
+slower than quicksort and other methods.
 
 [R_orderVector]: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
 
-I would like to be as general as base R `rank`, but as progress has been made here I've learned that `Scollate`, an internal R routines for comparing character strings using locale information, is not part of the R API.  Either I duplicate that functionality, which would probably be a bigger job than the rest of `fastrank`, or I leave character strings out.  So I'm leaving characters out.
+I also considered copy in its entirety the internal R function `do_rank` within
+`src/main/sort.c` that is what we reach when doing the `.Internal(rank(...))`
+call.  This ultimately proved to be impossible because of the numerous internal
+features used that are not part of the R API.
 
-I *think* it is necessary to use a stable sorting algorithm because of the `"first"` ties method.
-
-The implementation alternatives I am considering are:
-
-1. Use `R_orderVector` for sorting and then rank the `order` that comes back.  This is what I have used for the first implementation of a generic `fastrank`, see benchmarking results below.
-
-2. Copy in its entirety the internal R function `do_rank` within `src/main/sort.c` that is what we reach when doing the `.Internal(rank(...))` call.  This is the simplest, but isn't really possible to do completely because of the character issue above and I would extend it to handle the missing ties methods.  If I do this, I need to include R-core as package authors following <http://r-pkgs.had.co.nz/check.html>.
-
-3. Write my own C function with my own sort that I try to make faster than `.Internal(rank(...))`, perhaps by choosing sorting algorithms following <http://rosettacode.org/wiki/Sorting_algorithms/Quicksort> or some other advice.  I followed this option for `fastrank_numeric_average`, but its use of quicksort means it is not currently stable.  This is still not as fast as `.Internal(rank(...))`.
-
-4. Write my own C++ function using the `Rcpp` package instead of C.  I could use STL algorithms easily, but drawing in `Rcpp` brings in some heavyweight stuff that kind of defeats the purpose.
-
-* <http://stat.ethz.ch/R-manual/R-devel/library/base/html/sort.html>
-* <http://stat.ethz.ch/R-manual/R-devel/library/base/html/xtfrm.html>
-* <https://stat.ethz.ch/R-manual/R-devel/library/base/html/order.html>
+Finally, I considered using C++ and the **Rcpp** package for this, using an STL
+sorting routine which is probably quite comparable in performance to what I
+have implemented.  However, my reading indicated that using `Rcpp` pulls in
+some heavyweight object code, and I prefer to avoid that.
 
 
 
-## Progress
+How does R handle `.Internal`?
+==============================
 
-### Initial results with `fastrank_numeric_average`
+We are interested in this because we are trying to beat `.Internal(rank(...))`
+under all conditions.  I think because of the way this works, we will *not*
+beat it for short vectors because the call overhead for `.Call` is simply
+greater than for `.Internal` and there is now way around this.
+
+`.Internal` is handled via a special dispatch table that is compiled into base
+R.  It is described in the R Internals manual, and at a blog post.
+
+* http://cran.r-project.org/doc/manuals/r-release/R-ints.html#g_t_002eInternal-vs-_002ePrimitive
+* http://userprimary.net/posts/2010/03/14/r-internals-quick-tour/
+
+
+
+Performance Progress
+====================
+
+## Initial results with `fastrank_numeric_average`
 
 Well my initial implementation using my own quicksort and restricting the interface to a specific input type and specific ties method is complete and the first benchmark results are in. Bummer, it is not yet faster than calling `.Internal(rank(...))`.
 
@@ -145,7 +181,7 @@ Unit: microseconds
 ```
 
 
-### Faster after registering `fastrank_numeric_average`
+## Faster after registering `fastrank_numeric_average`
 
 After following the advice of <http://ftp.sunet.se/pub/lang/CRAN/doc/manuals/r-devel/R-exts.html#Registering-native-routines> and registering my C routine with R to reduce symbol search times, we are getting more comparable benchmark results:
 
@@ -188,7 +224,7 @@ Unit: microseconds
 However I still cannot call the C routine directly within R, `.Call` is always required.  My docs for the package should definitely include the `.Call` interface to save a bit more time.
 
 
-### General `fastrank`
+## General `fastrank`
 
 Now I've finished a preliminary version of a more general `fastrank(x, ties.method)` that can rank logical, integer, numeric, and (soon) complex vectors and can handle any of the ties methods.
 
@@ -212,7 +248,7 @@ Unit: microseconds
 ```
 
 
-### R wrapper call overhead
+## R wrapper call overhead
 
 The call overhead of the R wrapper is fairly high, especially with assigning argument values, so that going through `.Internal(...)` seems to give
 a good gain.  If we simplify our call to `.Call("fastrank_", ...)` we see a speedup.
@@ -237,7 +273,9 @@ Unit: microseconds
        fr(x)  2.716  3.1580  3.636770  3.3810  3.854   72.124 10000
 ```
 
-### Which type of `.Call`?
+
+
+## Which type of `.Call`?
 
 Note also a speedup if we use a character value for the function name in `.Call`, rather than the function name directly which passes the registration.  There is some variation (I ran `microbenchmark` three times below) but the advantage is on the order of about 1%.
 
@@ -297,11 +335,11 @@ Unit: microseconds
 Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 
-### Which type of sort?
+## Which type of sort?
 
 This is now completed, so...
 
-#### Summary of sort routine benchmarking
+### Summary of sort routine benchmarking
 
 * For `n=10` vectors, all methods perform similarly, and the advantage of `.Internal(rank(...))` seems to be in the call interface.
 * For `n=100` vectors, the methods still perform similarly, but the Quicksort with insertion sort is just a bit better than the rest.  Sedgwick shellsort is the best of those, with Ciura2 and Tokuda2 better than their default versions.  The advantage of `.Internal(rank(...))` still exists and is still sizable.
@@ -310,7 +348,7 @@ This is now completed, so...
 
 R's default Sedgwick shellsort is very good, but quicksort is better especially with the insertion sort speedup.  That is what I will go with.
 
-####  R_orderVector vs. Quicksort
+###  R_orderVector vs. Quicksort
 
 Compare `R_orderVector` (1) with `fr_quicksort_double_i_` (2).  I modified the type of my quicksort to be `int` to match `R_orderVector`.
 
@@ -361,7 +399,7 @@ Unit: microseconds
  fastrank(yyy, sort = 2L)  771.286  787.1900  838.3540  802.7980  822.3890  3434.097  1000
 ```
 
-#### Quicksort vs. three different shellsorts
+### Quicksort vs. three different shellsorts
 
 Now to add shellsort, with three implementations of gap distances, following the Wikipedia page for shellsort: Ciura (`3L`), Sedgwick (`4L`, R uses this), and Tokuda (`5L`).  This is in addition to quicksort (`2L`).
 
@@ -467,7 +505,7 @@ Unit: microseconds
  fastrank(yyy, sort = 5L) 1042.63 1070.03 1140.68 1087.28 1112.41 6823.2  1000
 ```
 
-#### Shellsort vs. Quicksort with insertion-sort shortcuts
+### Shellsort vs. Quicksort with insertion-sort shortcuts
 
 After some research I've adjusted Quicksort so below a certain vector length
 cutoff (the default 2 for `2L`, 11 for `6L`, 21 for `7L`), it switches to
@@ -550,7 +588,7 @@ Unit: microseconds
  fastrank(yyy, sort = 7L)  582.43  598.85  637.22  602.31  614.47  8150.8 10000
 ```
 
-#### Shellsort and Quicksort vs. Shellsort with the small gaps dropped
+### Shellsort and Quicksort vs. Shellsort with the small gaps dropped
 
 I wondered whether Shellsort with the last small gaps dropped (this shifting to insertion sort a bit earlier) would work better, so I created sort methods `8L` vs. `3L`, `9L` vs. `4L`, and `10L` vs. `5L` which do this.
 
@@ -599,7 +637,7 @@ Unit: microseconds
   fastrank(y, sort = 7L)  582.45  596.44  630.69  598.84  610.11  9061.4 10000
 ```
 
-#### Shellsorts and Quicksorts with worst-case vectors
+### Shellsorts and Quicksorts with worst-case vectors
 
 So I constructed some worst-case vectors.  I see they are all very similar with 10 vectors, Quicksort is starting to show its quality with 100 vectors, and clearly is best with 10000 vectors.  Sedgwick shellsort (`4L`) is also quite good.
 
@@ -648,7 +686,9 @@ Unit: microseconds
   fastrank(y, sort = 7L) 114.00 122.39 136.66 123.23 124.45 8202.6  1000
 ```
 
-### Which is faster, .Call or .C?
+
+
+## Which is faster, .Call or .C?
 
 **Result:** `.Call`, definitely.  With length 10 and 100 it is about 25% faster and with length 10000 it is about 5% faster.
 
@@ -692,7 +732,9 @@ Unit: microseconds
   fastrank_num_avg_C(yyy)  806.524  824.8475  891.3752  839.8600  863.3015  3237.999  1000
 ```
 
-### Which is faster, getting length internally or externally?
+
+
+## Which is faster, getting length internally or externally?
 
 **Result:**  Internally.
 
@@ -733,6 +775,7 @@ Unit: microseconds
 ```
 
 
+
 ## `fastrank` vs. `fastrank_num_avg`
 
 **Result:** The benefit of the direct interface more clear with shorter vectors, but the
@@ -764,6 +807,7 @@ Unit: microseconds
          fastrank(y) 112.60 120.73 137.01 122.12 123.72 5487.1  1000
  fastrank_num_avg(y) 112.84 120.83 148.52 122.00 123.65 6271.6  1000
 ```
+
 
 
 ## Does byte-compiling the R wrapper make a difference?
@@ -804,6 +848,8 @@ Unit: microseconds
  fastrank_num_avg(y) 111.513 119.8810 161.6919 122.2870 159.6305 24007.11 10000
             frnac(y) 111.481 119.6720 163.0280 121.7155 158.8405 25117.82 10000
 ```
+
+
 
 ## `PACKAGE = "fastrank"` in R wrapper, and retrying `.C`
 
@@ -864,7 +910,8 @@ Unit: microseconds
 ```
 
 
-## Best benchmarking results so far
+Best benchmarking results so far
+================================
 
 **Result:**  We are *almost* as fast as `.Internal(rank(...))` for vectors length 10, and the direct routines are about 10% faster than the general routine for short vectors, about 5% faster for 100 vectors, and essentially no difference for 10000 vectors.
 
@@ -900,18 +947,22 @@ Unit: microseconds
 ```
 
 
-## Remaining performance questions
+
+Remaining performance questions
+===============================
 
 Of course I want to squeeze as much time as I can, so need to explore an
 updated `fastrank_num_avg` since the direct entries *should* always be fastest,
 but there are a few more general points to explore. 
 
 * What does GC Torture mean when it comes to benchmarking?
-* In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
 
-## Remaining implementation questions
 
-I must create a large set of sets for all `ties.method` values that verify that `rank` and `fastrank` and the direct entry points are absolutely identical in their results, including class of the returned vector.  One method to pay attention to is `ties.method = "first"`.  Is this stable for us?
+
+Remaining implementation questions
+==================================
+
+I must create a large set of tests for all `ties.method` values that verify that `rank` and `fastrank` and the direct entry points are absolutely identical in their results, including class of the returned vector.  One method to pay attention to is `ties.method = "first"`.  Is this stable for us?
 
 ```R
 > y <- sample(10,10,repl=T)
@@ -927,8 +978,7 @@ I must create a large set of sets for all `ties.method` values that verify that 
 
 
 
-
 LICENSE
--------
+=======
 
 GPL 2, just like R itself.
