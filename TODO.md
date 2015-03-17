@@ -1,11 +1,11 @@
 TODO
 ----
 
+* Use a stable sort for `"first"`
 * Move QUICKSORT_INSERTION_CUTOFF to Makevars
 * Determine QUICKSORT_INSERTION_CUTOFF empirically, like with `configure`?
 * Continue genericifying Quicksort, `fastrank` and the other interfaces
 * Create a huge number of tests that check that `rank` and `fastrank` and direct entries are absolutely identical in all of them
-* Learn how `.Internal` passes arguments and results
 * Restore and debug complex vector support in `fastrank`
 * Is it OK to do the shortcut evaluation of `ties.method`?
 * Proper makefile for compiling C routines, look into `Makevars` and `Makevars.win` (mentioned in <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-C_002b_002b11-code>)
@@ -38,6 +38,7 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
+* Learned that `.Internal` is implemented via a dispatch table compiled into the R executable, so there is no way we can beat the speed of its call interface
 * It is much faster to include `PACKAGE = "fastrank"` in the R wrapper
 * It is faster to byte-compile the R wrapper
 * It is slower to pass length separately, `.Call("fastrank_", x, ties)` is faster than `.Call("fastrank_", x, length(x), ties)`

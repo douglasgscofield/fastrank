@@ -4,432 +4,147 @@ library(fastrank)
 context("Setting up some test data")
 
 ties.methods <- c("average", "first", "random", "max", "min")
+ties.classes <- c("numeric", "integer", "integer", "integer", "integer")
+names(ties.classes) <- ties.methods
+# use unname() when comparing
 
 # start as integer, convert to numeric as needed
 # also need logical and complex
 
 # 'worst-case' vectors
-y.rev <- 9L:1L
-yy.rev <- 103L:1L
-yyy.rev <- 1022L:1L
-yyyy.rev <- 12399L:1L
+y.rev <- 9:1
+yy.rev <- 103:1
+yyy.rev <- 10022:1
+yyyy.rev <- 102399:1
+y.ident <- rep(9, 9)
+yy.ident <- rep(103, 103)
+yyy.ident <- rep(10022, 10022)
+yyyy.ident <- rep(102399, 102399)
+y.fwd <- 1:9
+yy.fwd <- 1:103
+yyy.fwd <- 1:10022
+yyyy.fwd <- 1:102399
+
 
 set.seed(20030131)
 
 # arguments to sample() for creating random data
 #                          range   number   repl  iter
-sample.args <- list(list(     10,       5,  TRUE, 10000),
-                    list(     10,       5, FALSE, 10000),
-                    list(     10,      10,  TRUE, 10000),
-                    list(     10,      10, FALSE, 10000),
-                    list(     10,     100,  TRUE, 10000),
-                    list(    100,      50,  TRUE,  1000),
-                    list(    100,      50, FALSE,  1000),
-                    list(    100,     100,  TRUE,  1000),
-                    list(    100,     100, FALSE,  1000),
-                    list(    100,    1000,  TRUE,  1000),
-                    list(   1000,     500,  TRUE,   100),
-                    list(   1000,     500, FALSE,   100),
-                    list(   1000,    1000,  TRUE,   100),
-                    list(   1000,    1000, FALSE,   100),
-                    list(   1000,   10000,  TRUE,   100),
-                    list(  10000,    5000,  TRUE,    10),
-                    list(  10000,    5000, FALSE,    10),
-                    list(  10000,   10000,  TRUE,    10),
-                    list(  10000,   10000, FALSE,    10),
-                    list(  10000,  100000,  TRUE,     7),
-                    list( 100000,   50000,  TRUE,     7),
-                    list( 100000,   50000, FALSE,     7),
-                    list( 100000,  100000,  TRUE,     7),
-                    list( 100000,  100000, FALSE,     7),
-                    list( 100000, 1000000,  TRUE,     7),
-                    list(1000000,  500000,  TRUE,     4),
-                    list(1000000,  500000, FALSE,     4),
-                    list(1000000, 1000000,  TRUE,     4),
-                    list(1000000, 1000000, FALSE,     4)
+sample.args <- list(list(     10,       5,  TRUE,  10),
+                    list(     10,       5, FALSE,  10),
+                    list(     10,      10,  TRUE,  10),
+                    list(     10,      10, FALSE,  10),
+                    list(     10,      20,  TRUE,  10),
+                    list(    100,      50,  TRUE,   6),
+                    list(    100,      50, FALSE,   6),
+                    list(    100,     100,  TRUE,   6),
+                    list(    100,     100, FALSE,   6),
+                    list(    100,     200,  TRUE,   6),
+                    list(   1000,     500,  TRUE,   5),
+                    list(   1000,     500, FALSE,   5),
+                    list(   1000,    1000,  TRUE,   5),
+                    list(   1000,    1000, FALSE,   5),
+                    list(   1000,    2000,  TRUE,   5),
+                    list(  10000,    5000,  TRUE,   3),
+                    list(  10000,    5000, FALSE,   3),
+                    list(  10000,   10000,  TRUE,   3),
+                    list(  10000,   10000, FALSE,   3),
+                    list(  10000,   20000,  TRUE,   3),
+                    list( 100000,   50000,  TRUE,   2),
+                    list( 100000,   50000, FALSE,   2),
+                    list( 100000,  100000,  TRUE,   2),
+                    list( 100000,  100000, FALSE,   2),
+                    list( 100000,  200000,  TRUE,   2)
                     )
-
-for (a in sample.args) {
-    for (i in 1:a[[4]]) {
-        v <- sample(a[[1]], a[[2]], a[[3]])
-    }
-}
 
 # long vectors
 
 #########################################
-context("Testing worst-case")
+for (ti in ties.methods) {
 
-test_that("Worst-case vectors identical with rank()", {
-    expect_true(all(fastrank(y.rev) == rank(y.rev)))
-    expect_true(all(fastrank(yy.rev) == rank(yy.rev)))
-    expect_true(all(fastrank(yyy.rev) == rank(yyy.rev)))
-    expect_true(all(fastrank(yyyy.rev) == rank(yyyy.rev)))
-    expect_equal(fastrank(y.rev), rank(y.rev))
-    expect_equal(fastrank(yy.rev), rank(yy.rev))
-    expect_equal(fastrank(yyy.rev), rank(yyy.rev))
-    expect_equal(fastrank(yyyy.rev), rank(yyyy.rev))
-    expect_is(fastrank(y.rev), "integer")
-    expect_is(fastrank(yy.rev), "integer")
-    expect_is(fastrank(yyy.rev), "integer")
-    expect_is(fastrank(yyyy.rev), "integer")
-})
+    ctxt <- paste(sep="", "Worst-case \"", ti, "\", vs. rank()")
+    context(ctxt)
 
+    test_that("Worst-case reverse vectors and classes == rank()", {
+        expect_equal(fastrank(y.rev, ties.method = ti),
+                     rank(y.rev, ties.method = ti))
+        expect_equal(fastrank(yy.rev, ties.method = ti),
+                     rank(yy.rev, ties.method = ti))
+        expect_equal(fastrank(yyy.rev, ties.method = ti),
+                     rank(yyy.rev, ties.method = ti))
 
-#########################################
-context("Testing writeGenalex()")
-
-test_that("writeGenalex() obeys options", {
-    # sep= separator
-    expect_output(writeGenalex(x1, file = ""), "\n2\tsnurf\t12\t15\t")
-    expect_output(writeGenalex(x1, file = "", sep = ","), "\n1,snurf,11,14,")
-    expect_output(writeGenalex(x1, file = "", sep = " "), "\n3 snurf 13 16 ")
-    # eol= end of line
-    expect_output(writeGenalex(x1, file = ""), "\t102\t105\n")
-    expect_match(capture.output(writeGenalex(x1, file = "", eol = "\r")), "\t101\t104\r")
-    expect_output(writeGenalex(x1, file = "", eol = " "), "\t101\t104 2\tsnurf\t")
-    # na= na.character= NA
-    x1.na <- x1; x1.na[2, 4] <- NA
-    expect_output(writeGenalex(x1.na, file = ""), "\n2\tsnurf\t12\t0\t102\t")
-    expect_output(writeGenalex(x1.na, file = "", na = "NA"), "\n2\tsnurf\t12\tNA\t102\t")
-    expect_output(writeGenalex(x1.na, file = "", na = "."), "\n2\tsnurf\t12\t.\t102\t")
-    x1.na[2, 2] <- NA
-    expect_output(writeGenalex(x1.na, file = ""), "\n2\t\t12\t0\t102\t")
-    expect_output(writeGenalex(x1.na, file = "", na.character = "-missing-"), "\n2\t-missing-\t12\t0\t102\t")
-    expect_output(writeGenalex(x1.na, file = "", na = "NA", na.character = "."), "\n2\t.\t12\tNA\t102\t")
-    # quote= quote character values
-    expect_output(writeGenalex(x1, file = "", quote = TRUE), "\n\"2\"\t\"snurf\"\t12\t15\t")
-    # still missing extra.columns stuff
-})
+        expect_equal(class(fastrank(y.rev, ties.method = ti)),
+                     unname(ties.classes[ti]))
+    })
+    test_that("Worst-case reverse vectors and classes == rank()", {
+        skip_on_cran()
+        expect_equal(fastrank(yyyy.rev, ties.method = ti),
+                     rank(yyyy.rev, ties.method = ti))
+    })
 
 
-#########################################
-context("Testing summary.genalex()")
+    test_that("Worst-case identical vectors and classes == rank()", {
+        expect_equal(fastrank(y.ident, ties.method = ti),
+                     rank(y.ident, ties.method = ti))
+        expect_equal(fastrank(yy.ident, ties.method = ti),
+                     rank(yy.ident, ties.method = ti))
+        expect_equal(fastrank(yyy.ident, ties.method = ti),
+                     rank(yyy.ident, ties.method = ti))
 
-test_that("summary.genalex summarises pops etc., genotypes, and extra data", {
-    s <- capture.output(summary(x1))
-    expect_output(s, "Number of samples: 3")
-    expect_output(s, "Number of loci: 2")
-    expect_output(s, "Min.   :104.0")
-    expect_that(s, not(prints_text("Summary of extra.columns data frame:")))
-    s.x <- capture.output(summary(x1.x))
-    expect_output(s.x, "Summary of extra.columns data frame:")
-    expect_output(s.x, "Min.   :204.0")
-})
+        expect_equal(class(fastrank(y.rev, ties.method = ti)),
+                     unname(ties.classes[ti]))
+    })
+    test_that("Worst-case reverse vectors and classes == rank()", {
+        skip_on_cran()
+        expect_equal(fastrank(yyyy.ident, ties.method = ti),
+                     rank(yyyy.ident, ties.method = ti))
+    })
 
 
-#########################################
-context("Testing printGenotype()")
+    test_that("Worst-case forward vectors and classes == rank()", {
+        expect_equal(fastrank(y.fwd, ties.method = ti),
+                     rank(y.fwd, ties.method = ti))
+        expect_equal(fastrank(yy.fwd, ties.method = ti),
+                     rank(yy.fwd, ties.method = ti))
+        expect_equal(fastrank(yyy.fwd, ties.method = ti),
+                     rank(yyy.fwd, ties.method = ti))
 
-test_that("printGenotype prints selected lines and calls out genotypes", {
-    s <- capture.output(printGenotype(x1, rows = 3, callout.locus = "b"))
-    expect_equal(s, "3 snurf 13/16 *103/106*")
-    #expect_match(s, "3 snurf 13/16 *103/106*", fixed = TRUE)
-    s2 <- capture.output(printGenotype(x2, rows = 1, callout.locus = "a", allele.sep = "|"))
-    expect_equal(s2, "4 snirf *21|24* 201|204")
-    s3 <- paste(collapse = ":", capture.output(printGenotype(x2, allele.sep = "|")))
-    expect_equal(s3, "4 snirf 21|24 201|204:5 snirf 22|25 202|205:6 snirf 23|26 203|206")
-})
+        expect_equal(class(fastrank(y.rev, ties.method = ti)),
+                     unname(ties.classes[ti]))
+    })
+    test_that("Worst-case reverse vectors and classes == rank()", {
+        skip_on_cran()
+        expect_equal(fastrank(yyyy.fwd, ties.method = ti),
+                     rank(yyyy.fwd, ties.method = ti))
+    })
+
+}
 
 
 #########################################
-context("Testing getLocusColumns()")
+for (ti in ties.methods) {
 
-test_that("getLocusColumns works with 1 or more loci and regardless of ploidy", {
-    expect_equal(getLocusColumns(x1, c("a","b")), getLocusColumns(x2, c("a","b")))
-    expect_equal(getLocusColumns(x2, "b"), 5:6)
-    expect_equal(getLocusColumns(x2.reord, "b"), 3:4)
-})
+    ctxt <- paste(sep="", "Random, \"", ti, "\", vs. rank(), ")
 
+    for (a in sample.args) {
+        ctxt.s <- paste(sep="", "sample(", 
+                        paste(sep=",", a[[1]], a[[2]], a[[3]]), 
+                        ") * ", a[[4]])
 
-#########################################
-context("Testing reorderLoci()")
+        context(paste(sep="", ctxt, ctxt.s))
 
-test_that("reorderLoci checks for same numbers of loci and handles several permutations", {
-    locn <- attr(x1, "locus.names")
-    expect_is(reorderLoci(x1, locn), "genalex")
-    expect_is(reorderLoci(x1, locn), "data.frame")
-    r1 <- reorderLoci(x1, rev(locn))
-    expect_is(reorderLoci(r1, locn), "genalex")
-    expect_is(reorderLoci(r1, locn), "data.frame")
-    expect_equal(x1, reorderLoci(r1, locn))
-    expect_equal(x1, reorderLoci(reorderLoci(x1, rev(locn)), locn))
-    expect_error(reorderLoci(x1, c(locn, locn)), 
-        "loci must appear only once")
-    expect_error(reorderLoci(x1, c(locn, "xxx")),
-        "reorder list must contain all existing loci")
-    expect_error(reorderLoci(x1, c("xxx", locn)),
-        "reorder list must contain all existing loci")
-})
+        test_that("Random vectors", {
+            if (a[[2]] > 10000) skip_on_cran()
+            for (i in 1:a[[4]]) {
+                    v <- sample(a[[1]], a[[2]], a[[3]])
+                    r1 <- rank(v, ties.method = ti)
+                    r2 <- fastrank(v, ties.method = ti)
+                    expect_equal(r1, r2)
+                    expect_equal(class(r1), class(r2))
+                    expect_equal(class(r2), unname(ties.classes[ti]))
+            }
+        })
+    }
+}
 
-
-#########################################
-context("Testing replaceLocus()")
-
-pl.1 <- replaceLocus(x1, "b", data.frame(d=101:103, d.2=104:106))
-pl.2 <- replaceLocus(x1, "b", matrix(101:106, byrow=FALSE, nrow=3, ncol=2))
-
-test_that("replaceLocus()", {
-    # replace with its own data
-    expect_is(pl.1, "genalex")
-    expect_is(pl.1, "data.frame")
-    expect_equal(pl.1, x1)
-    expect_is(pl.2, "genalex")
-    expect_is(pl.2, "data.frame")
-    expect_equal(pl.2, x1)
-})
-
-
-#########################################
-context("Testing getLocus()")
-
-test_that("getLocus()", {
-    # return is a data.frame
-    l1 <- getLocus(pl.1, "a")
-    expect_equal(class(getLocus(pl.1, "a")), "data.frame")
-    expect_equal(class(l1), "data.frame")
-    l2 <- getLocus(pl.1, "b")
-    expect_equal(l2, data.frame(b=101:103, b.2=104:106))
-})
-
-
-#########################################
-context("Testing dropLocus()")
-
-
-test_that("dropLocus()", {
-    p1 <- dropLocus(x1, "a")
-    expect_error(dropLocus(x1, c("xxx")),
-        "locus not present")
-    expect_equal(dropLocus(x1, c("xxx", "a"), quiet = TRUE), p1)
-    expect_error(dropLocus(x1, c("xxx", "a")),
-        "locus not present")
-    expect_error(dropLocus(x1, c("a","xxx"), quiet = FALSE),
-        "locus not present")
-    expect_is(p1, "genalex")
-    p1.2 <- genalex(1:3, "snurf", g1[, 3:4], ploidy = 2)
-    attr(p1, "data.file.name") <- attr(p1.2, "data.file.name") <- NULL
-    expect_equal(p1, p1.2)
-    expect_equal(names(p1), c("sample", "pop", "b", "b.2"))
-    expect_equal(attr(p1, "n.loci"), 1)
-    expect_equal(attr(p1, "ploidy"), 2)
-    expect_equal(attr(p1, "locus.columns"), c(3))
-})
-
-
-#########################################
-context("Testing reducePloidy()")
-
-test_that("reducePloidy()", {
-    p1 <- reducePloidy(x1, 1)
-    expect_is(p1, "genalex")
-    expect_equal(reducePloidy(x1, 2), x1)
-    expect_error(reducePloidy(x1, 3),
-        "greater than existing ploidy")
-    p1.4 <- genalex(1:3, "snurf", g1, ploidy = 4)
-    expect_error(reducePloidy(p1.4, 2),
-        "can't currently handle new.ploidy other than 1, existing ploidy other than 2")
-    p1.2 <- genalex(1:3, "snurf", g1[, c(1,3)], ploidy = 1)
-    attr(p1, "data.file.name") <- attr(p1.2, "data.file.name") <- NULL
-    expect_equal(p1, p1.2)
-    expect_equal(names(p1), c("sample", "pop", "a", "b"))
-    expect_equal(attr(p1, "ploidy"), 1)
-    expect_equal(attr(p1, "locus.columns"), 3:4)
-})
-
-#########################################
-context("Testing genalex()")
-
-test_that("genalex() object identities correct", {
-    expect_is(x1,        "genalex")
-    expect_is(x1,        "data.frame")
-    expect_is(x1.x,      "genalex")
-    expect_is(x1.x,      "data.frame")
-})
-
-nnn <- list(title = "ttt", sample = "sss", pop = "ppp")
-rb.n <- rbind(x1, x2, names = nnn)
-
-test_that("genalex correctly applies names", {
-    # defaults
-    expect_equal(attr(x1, "dataset.title"), "genalex")
-    expect_equal(attr(x1, "sample.title"), "sample")
-    expect_equal(attr(x1, "pop.title"), "pop")
-    # names argument
-    xn <- genalex(1:3, "snoof", g1, names = nnn)
-    expect_equal(attr(xn, "dataset.title"), "ttt")
-    expect_equal(attr(xn, "sample.title"), "sss")
-    expect_equal(attr(xn, "pop.title"), "ppp")
-    # partial
-    pnn <- nnn; pnn$title <- pnn$sample <- NULL
-    xpn <- genalex(1:3, "snoff", g1, names = pnn)
-    expect_equal(attr(xpn, "dataset.title"), "genalex")
-    expect_equal(attr(xpn, "sample.title"), "sample")
-    expect_equal(attr(xpn, "pop.title"), "ppp")
-})
-
-
-test_that("genalex() generates errors for data inconsistencies", {
-    expect_error(rbind(x1, x1),
-        "sample names must be unique")
-    expect_error(genalex(7:8, "shortsample", g1),
-        "'samples' and 'genotypes' must have the same length")
-    ga <- data.frame(a=11:13, a.2=14:16, b=c("a","b","c"), b.2=rep("d",3))
-    expect_error(genalex(1:3, "nonnumeric", ga),
-        "genotype data must be numeric")
-    g3 <- data.frame(a = 21:23, a.2 = 24:26, b = 201:203)
-    expect_error(genalex(7:9, "missing1", g3, ploidy = 2),
-        "'genotypes' must have a number of columns dividable by ploidy")
-    g4 <- data.frame(a=21:23, a.2=24:26, b=201:203, b.2=204:206, c=1:3)
-    expect_error(genalex(7:9, "added1", g4, ploidy = 2),
-        "'genotypes' must have a number of columns dividable by ploidy")
-})
-
-
-
-#########################################
-context("Testing as.genalex()")
-
-g1 <- data.frame(a = 11:13, a.2 = 14:16, b = 101:103, b.2 = 104:106)
-df1 <- cbind(sampxx = 1:3, popyy = c("a","a","b"), g1)
-gdf1 <- as.genalex(df1)
-gdf1.n <- as.genalex(df1, names = nnn)
-gdf1.p1 <- as.genalex(df1, ploidy = 1)
-
-test_that("as.genalex object identities correct", {
-    expect_is(gdf1,    "genalex")
-    expect_is(gdf1,    "data.frame")
-    expect_is(gdf1.n,  "genalex")
-    expect_is(gdf1.n,  "data.frame")
-    expect_is(gdf1.p1, "genalex")
-    expect_is(gdf1.p1, "data.frame")
-})
-
-test_that("as.genalex correctly returns when given class 'genalex'", {
-    expect_equal(as.genalex(gdf1), gdf1)
-    expect_equal(as.genalex(gdf1.n), gdf1.n)
-    expect_equal(as.genalex(gdf1.p1), gdf1.p1)
-})
-
-test_that("as.genalex correctly determines default attributes", {
-    expect_equal(attr(gdf1, "n.pops"), 2)
-    expect_equal(attr(gdf1, "pop.sizes"), setNames(c(2, 1), c("a", "b")))
-    expect_equal(attr(gdf1, "locus.names"), c("a", "b"))
-    expect_equal(attr(gdf1, "locus.columns"), c(3, 5))
-    expect_equal(attr(gdf1, "ploidy"), 2)
-    expect_equal(attr(gdf1, "n.loci"), 2)
-    # ploidy = 1
-    expect_equal(attr(gdf1.p1, "ploidy"), 1)
-    expect_equal(attr(gdf1.p1, "n.loci"), 4)
-    expect_equal(attr(gdf1, "pop.sizes"), setNames(c(2, 1), c("a", "b")))
-    expect_equal(attr(gdf1.p1, "locus.names"), c("a", "a.2", "b", "b.2"))
-    expect_equal(attr(gdf1.p1, "locus.columns"), 3:6)
-
-    old <- as.data.frame(gdf1)
-    attr(old, "genetic.data.format") <- "genalex"
-    expect_warning(old.1 <- as.genalex(old, ploidy = 1),
-        "args ignored, converting pre-1.0 readGenalex data frame")
-    expect_warning(old.2 <- as.genalex(old, ploidy = 2),
-        "args ignored, converting pre-1.0 readGenalex data frame")
-    expect_equal(old.1, old.2)
-    expect_true(! isTRUE(all.equal(old, old.2, check.attributes = TRUE)))
-    expect_true(isTRUE(all.equal(old, old.2, check.attributes = FALSE)))
-
-    expect_error(as.genalex(df1[, 1:2]),
-        "not enough columns for class 'genalex'")
-    expect_error(as.genalex(cbind(df1[, 1:2], loc=rep("a",3)), ploidy = 1),
-        "genotype data must be numeric")
-})
-
-test_that("as.genalex correctly applies names", {
-    # defaults and column names
-    expect_equal(attr(gdf1, "dataset.title"), "genalex")
-    expect_equal(attr(gdf1, "sample.title"), "sampxx")
-    expect_equal(attr(gdf1, "pop.title"), "popyy")
-    # names argument
-    expect_equal(attr(gdf1.n, "dataset.title"), "ttt")
-    expect_equal(attr(gdf1.n, "sample.title"), "sss")
-    expect_equal(attr(gdf1.n, "pop.title"), "ppp")
-    # partial
-    pnn <- nnn; pnn$title <- pnn$sample <- NULL
-    gdf1.p <- as.genalex(df1, names = pnn)
-    expect_equal(attr(gdf1.p, "dataset.title"), "genalex")
-    expect_equal(attr(gdf1.p, "sample.title"), "sampxx")
-    expect_equal(attr(gdf1.p, "pop.title"), "ppp")
-})
-
-
-
-#########################################
-context("Testing rbind.genalex()")
-
-rb <- rbind(x1, x2)
-rb.reord <- rbind(x1, x2.reord)
-rbx <- rbind(x1.x, x2.x)
-rbx.reord <- rbind(x1.x, x2.reord.x)
-
-test_that("rbind.genalex() object identities correct", {
-    expect_is(rb,        "genalex")
-    expect_is(rb,        "data.frame")
-    expect_is(rb.reord,  "genalex")
-    expect_is(rb.reord,  "data.frame")
-    expect_is(rbx,       "genalex")
-    expect_is(rbx,       "data.frame")
-    expect_is(rbx.reord, "genalex")
-    expect_is(rbx.reord, "data.frame")
-})
-
-test_that("rbind dispatches to rbind.data.frame if one is data.frame", {
-    x1.df <- as.data.frame(x1)
-    expect_false("genalex" %in% class(rbind(x1.df, x2)))
-    expect_false("genalex" %in% class(rbind(x2, x1.df)))
-})
-
-test_that("rbind.genalex locus ordering and reordering", {
-    attr(rb, "data.file.name") <- attr(rb.reord, "data.file.name") <- "placeholder"
-    expect_equal(rb, rb.reord)
-    attr(rbx, "data.file.name") <- attr(rbx.reord, "data.file.name") <- "placeholder"
-    expect_equal(rbx, rbx.reord)
-})
-
-test_that("rbind.genalex generates errors for data inconsistencies", {
-    expect_error(rbind(x1, x1),
-        "sample names must be unique")
-    expect_error(rbind(x1.x, x2),
-        "all arguments must either have or lack extra columns")
-    expect_error(rbind(x2, x1.x),
-        "all arguments must either have or lack extra columns")
-    x1.alt <- matrix(1, ncol = ncol(x2), nrow = 3)
-    expect_error(rbind(x1.alt, x2),
-        "all arguments must be class 'genalex'")
-    expect_error(rbind(x2, x1.alt),
-        "all arguments must be class 'genalex'")
-    x1.rp <- reducePloidy(x1, 1)
-    expect_error(rbind(x1.rp, x2),
-        "all arguments must have the same ploidy")
-    expect_error(rbind(x2, x1.rp),
-        "all arguments must have the same ploidy")
-    x1.dl <- dropLocus(x1, "b")
-    expect_error(rbind(x1.dl, x2),
-        "all arguments must contain the same loci")
-    expect_error(rbind(x2, x1.dl),
-        "all arguments must contain the same loci")
-})
-
-nnn <- list(title = "ttt", sample = "sss", pop = "ppp")
-rb.n <- rbind(x1, x2, names = nnn)
-
-test_that("rbind.genalex correctly applies names", {
-    expect_equal(attr(rb, "dataset.title"), attr(x1, "dataset.title"))
-    expect_equal(attr(rb, "sample.title"), attr(x1, "sample.title"))
-    expect_equal(attr(rb, "pop.title"), attr(x1, "pop.title"))
-    expect_equal(attr(rb.reord, "dataset.title"), attr(x1, "dataset.title"))
-    expect_equal(attr(rb.reord, "sample.title"), attr(x1, "sample.title"))
-    expect_equal(attr(rb.reord, "pop.title"), attr(x1, "pop.title"))
-    expect_equal(attr(rb.n, "dataset.title"), "ttt")
-    expect_equal(attr(rb.n, "sample.title"), "sss")
-    expect_equal(attr(rb.n, "pop.title"), "ppp")
-    expect_equal(attr(rb, "data.file.name"), "rbind(x1, x2)")
-    expect_equal(attr(rb.n, "data.file.name"), "rbind(x1, x2, names = nnn)")
-})
 

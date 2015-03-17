@@ -9,6 +9,7 @@
 ^sedgwick_landscape_fewtrees\.jpg$
 ^NEWS.md$
 ^TODO.md$
+^BENCHMARKING.md$
 ^src/tst$
 ^src/.*\.bak.*$
 ^.*\.dSYM$
