@@ -105,31 +105,34 @@ insertion sort of vector length equal to or shorter than
 `QUICKSORT_INSERTION_CUTOFF`, currently set to 20.  See benchmarking results
 for much more on sort routine selection.
 
-The main sorting and assigning of ranks is coded in macros, with concrete types
-and comparison functions supplied via macro arguments.  This means that while
-there is less duplication of code features in the source, there is some
+The main sorting and assigning of ranks is coded in C macros, with concrete
+types and comparison functions supplied via macro arguments.  This means that
+while there is less duplication of code features in the source, there is some
 duplication in the final object code.  This is however likely quite fast, and
 datatype-specific optimisations can be applied wherever possible.  I have not
 benchmarked my concrete expansions against a more generic approach, but common
-sense suggests it is faster.
+sense suggests concrete is faster.
 
 I considered using R's own sorting routines, e.g.,
 [`R_orderVector`][R_orderVector], especially considering it can handle any type
 of atomic `SEXP`, but benchmarking presented below demonstrated that it is
-slower than quicksort and other methods.
-
-[R_orderVector]: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
+slower than Quicksort and other methods.
 
 I also considered copy in its entirety the internal R function `do_rank` within
 `src/main/sort.c` that is what we reach when doing the `.Internal(rank(...))`
 call.  This ultimately proved to be impossible because of the numerous internal
 features used that are not part of the R API.
 
-Finally, I considered using C++ and the **Rcpp** package for this, using an STL
-sorting routine which is probably quite comparable in performance to what I
-have implemented.  However, my reading indicated that using `Rcpp` pulls in
-some heavyweight object code, and I prefer to avoid that.
+Finally, I considered using C++ and the [**Rcpp**][Rcpp] package for this,
+using an STL sorting routine which is probably quite comparable in performance
+to what I have implemented.  However, my reading indicated that using `Rcpp`
+pulls in some heavyweight object code, and I prefer to avoid that.
 
+I still have some performance tweaking to do, but major decisions based on
+benchmarking are now completed and the main structure is in place.
+
+[R_orderVector]: http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Utility-functions
+[Rcpp]: http://cran.r-project.org/web/packages/Rcpp/index.html
 
 
 How does R handle `.Internal`?
@@ -138,7 +141,7 @@ How does R handle `.Internal`?
 We are interested in this because we are trying to beat `.Internal(rank(...))`
 under all conditions.  I think because of the way this works, we will *not*
 beat it for short vectors because the call overhead for `.Call` is simply
-greater than for `.Internal` and there is now way around this.
+greater than for `.Internal` and there is no way around this.
 
 `.Internal` is handled via a special dispatch table that is compiled into base
 R.  It is described in the R Internals manual, and at a blog post.
@@ -150,6 +153,9 @@ R.  It is described in the R Internals manual, and at a blog post.
 
 Performance Progress
 ====================
+
+**Note:** This narrative progresses in time and shows the various improvements
+as they happened.  See the end for the latest results.
 
 ## Initial results with `fastrank_numeric_average`
 
