@@ -17,12 +17,11 @@ a few seconds to complete on a test data set.
   5.252   0.067   5.318 
 ```
 
-Profiling with `library(lineprof)` revealed that the bottleneck here is in the
-utility function `nestedRanksTest_Z`, specifically in the calculation of ranks
-via the base R function `rank`.  A stripped-down `rank_new` is 8-9&times;
-faster than the default rank for a vector of 100 values: For 1000-value vectors
-the speedup is more modest, about 2&times;, and for 10,000-value vectors the
-speedup is only in the neighbourhood of 20-30%:
+Profiling with `library(lineprof)` revealed that the bottleneck was in the base
+R function `rank`.  A stripped-down `rank_new` that simply calls the
+`.Internal(rank(...))` routine is 8-9&times; faster than the default rank for a
+vector of 100 values, about 2&times; faster for 1000-value vectors, and only about
+20-30% for 10,000-value vectors.
 
 ```R
 > library(microbenchmark)
@@ -52,30 +51,38 @@ Unit: microseconds
 `fastrank` API
 ==============
 
-The general interface:
+The package provides a general interface via the `fastrank` function, which
+accepts any accepted datatype and any `ties.method`:
 
 ```R
 fastrank(x, ties.method = c("average", "first", "random", "max", "min"))
 ```
 
-The direct interfaces bypass data type and `ties.method` determination.
+The package also provides direct interfaces that rank on specific data types
+with specific tie-breaking methods, for example:
 
 ```R
 fastrank_num_avg(x)
-...
 ```
 
-`fastrank` handles all `ties.method` arguments identically to base `rank`.
-`fastrank` handles `"first"` and `"random"` in C code, so should be much faster
-for these.
+The ranks of `x` are returned in a vector of the same length as `x`.  For
+`ties.method = "average"` the vector returned is `numeric` because ranks
+can be fractional; for all other methods the vector is `integer`.
+
+`fastrank` is designed to handle all `ties.method` arguments identically to
+base `rank`.  `fastrank` handles `"first"` and `"random"` in C code, so should
+be much faster for these.  **Unfortunately, the `"first"` method is not
+currently comparable** because the sort routine used does not preserve the
+order of equivalent items.  In future `fastrank` may switch to using a stable
+sort if `"first"` is requested.
 
 No `fastrank` entry handles `NA` in data, nor do they accept `character`
-vectors for ranking.  The `Scollate` internal R
-routines for comparing character strings using locale information is not part
-of the R API, and it would probably be a
-bigger job to provide this than the rest of `fastrank`.
+vectors for ranking.  The `Scollate` internal R routines for comparing
+character strings using locales is not part of the R API, and it would probably
+be a bigger job to provide this than the rest of `fastrank`.
 
-If you need to sort `NA` or `character`, use base `rank`.
+If you need to sort `NA` or `character`, use base `rank` or convert your
+data to a form accepted by `fastrank`.
 
 
 
@@ -127,7 +134,9 @@ benchmarking are now completed and the main structure is in place.
 Benchmarking
 ============
 
-For benchmarking and performance details, see BENCHMARKING.md.
+For benchmarking and performance details, see [BENCHMARKING.md][BENCHMARKING.md].
+
+[BENCHMARKING.md]: https://github.com/douglasgscofield/fastrank/blob/master/BENCHMARKING.md
 
 We are *almost* as fast as `.Internal(rank(...))` for vectors length 10, and the direct routines are about 10% faster than the general routine for short vectors, about 5% faster for 100 vectors, and essentially no difference for 10000 vectors.
 
