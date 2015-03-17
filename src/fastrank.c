@@ -60,8 +60,8 @@ void R_init_fastrank(DllInfo *info) {
 
 #define GREATER(__A, __B) (__A > __B)
 #define LESSER(__A, __B)  (__A < __B)
-#define C_GREATER(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
-#define C_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
+#define CPLX_GREATER(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
+#define CPLX_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
 
 #define FR_quicksort_body(__TYPE, __GREATER, __LESSER) \
     MY_SIZE_T i; /* used as param outside of body */ \

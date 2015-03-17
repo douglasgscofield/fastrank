@@ -2,6 +2,7 @@ TODO
 ----
 
 * Use a stable sort for `"first"`... actually I might be able to always use a stable sort, since I have the index vector already I only exchange equivalent values if their index values are inverted.
+* Compare against dual-pivot quicksort, see papers in Dropbox/_2015-all/__fastrank/
 * Move QUICKSORT_INSERTION_CUTOFF to Makevars
 * Determine QUICKSORT_INSERTION_CUTOFF empirically, like with `configure`?
 * Continue genericifying Quicksort, `fastrank` and the other interfaces
