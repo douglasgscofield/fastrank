@@ -2,7 +2,6 @@ TODO
 ----
 
 * Learn how `.Internal` passes arguments and results
-* Is it faster to byte-compile the R wrapper?
 * Restore and debug complex vector support in `fastrank`
 * Is it OK to do the shortcut evaluation of `ties.method`?
 * Proper makefile for compiling C routines, look into `Makevars` and `Makevars.win` (mentioned in <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-C_002b_002b11-code>)
@@ -32,6 +31,7 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
+* It is faster to byte-compile the R wrapper
 * It is slower to pass length separately, `.Call("fastrank_", x, ties)` is faster than `.Call("fastrank_", x, length(x), ties)`
 * We have settled on Quicksort with insertion sort when vector length &le; 20
 * We have long vector support

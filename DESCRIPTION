@@ -5,7 +5,7 @@ Version: 0.1
 Author: Douglas G. Scofield
 Maintainer: Douglas G. Scofield <douglasgscofield@gmail.com>
 Description: Provides rank functions for integer and numeric with less overhead as base R `rank`, as alternatives to calling `.Internal(rank(...))` which is forbidden within packages.  In avoiding the overhead, fastrank functions impose constraints on the user.  The R wrapper `fastrank` does a bit of type checking and type-specific dispatch, while the C functions `fastrank_int` and `fastrank_num` are available for integer and numeric vectors, respectively, via `.Call`, and do no error checking.
-ByteCompile: no
+ByteCompile: yes
 NeedsCompilation: yes
 License: GPL (>= 2)
 URL: https://github.com/douglasgscofield/fastrank

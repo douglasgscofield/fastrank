@@ -765,6 +765,46 @@ Unit: microseconds
  fastrank_num_avg(y) 112.84 120.83 148.52 122.00 123.65 6271.6  1000
 ```
 
+
+## Does byte-compiling the R wrapper make a difference?
+
+**Result:** Yes, especially with short vectors, and the difference matters for
+both the general and the direct entry point.  I'm definitely setting byte-compile
+in the DESCRIPTION.
+
+```R
+> library(compiler)
+> frc = cmpfun(fastrank, options=list(optimize=3))
+> frnac = cmpfun(fastrank_num_avg, options=list(optimize=3))
+> y <- y.rev
+> microbenchmark(rank_new(y),fastrank(y),frc(y),fastrank_num_avg(y),frnac(y),times=1000000)
+Unit: nanoseconds
+                expr  min   lq     mean median   uq      max neval
+         rank_new(y)  695 1027 1143.954   1096 1192   806773 1e+06
+         fastrank(y) 3030 3370 3762.967   3540 3759 56940488 1e+06
+              frc(y) 2897 3252 3740.441   3422 3638 49041917 1e+06
+ fastrank_num_avg(y) 2931 3296 3773.189   3459 3671 49656864 1e+06
+            frnac(y) 2788 3166 3543.806   3329 3541 49618320 1e+06
+> y <- yy.rev
+> microbenchmark(rank_new(y),fastrank(y),frc(y),fastrank_num_avg(y),frnac(y),times=100000)
+Unit: microseconds
+                expr   min    lq     mean median    uq       max neval
+         rank_new(y) 2.622 3.000 3.438997  3.116 3.236  5766.928 1e+05
+         fastrank(y) 3.884 4.329 5.806631  4.526 4.762 39776.871 1e+05
+              frc(y) 3.806 4.236 5.284891  4.431 4.661  8314.444 1e+05
+ fastrank_num_avg(y) 3.802 4.255 5.377794  4.443 4.666  5895.072 1e+05
+            frnac(y) 3.675 4.124 5.072473  4.314 4.538  5809.602 1e+05
+> y <- yyy.rev
+> microbenchmark(rank_new(y),fastrank(y),frc(y),fastrank_num_avg(y),frnac(y),times=10000)
+Unit: microseconds
+                expr     min       lq     mean   median       uq      max neval
+         rank_new(y) 278.556 284.2855 319.3234 288.2875 316.2295 23629.18 10000
+         fastrank(y) 112.096 119.7870 158.7820 122.3390 159.6330 23861.57 10000
+              frc(y) 111.941 119.6615 159.0503 122.1085 159.3405 24332.65 10000
+ fastrank_num_avg(y) 111.513 119.8810 161.6919 122.2870 159.6305 24007.11 10000
+            frnac(y) 111.481 119.6720 163.0280 121.7155 158.8405 25117.82 10000
+```
+
 ## Remaining performance questions
 
 Of course I want to squeeze as much time as I can, so need to explore an
@@ -773,7 +813,6 @@ but there are a few more general points to explore.
 
 * What does GC Torture mean when it comes to benchmarking?
 * In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
-* Does it make a difference to byte-compile the R wrapper?
 
 
 
