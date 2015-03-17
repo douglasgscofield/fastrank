@@ -24,7 +24,9 @@ TODO
 * What are the errors once sees with incorrect data?
 * Update all these experiences over in the **R-package-utilities** repository.
 
+
 ### Potential CRAN issues
+
 I don't know what sorts of things I might run into with submitting this to CRAN, so I would like to anticipate them as much as possible.  Some of the TODO and Completed address this concern but here I will collect more specific links and thoughts.
 
 * Here mentions a mod to a Makevars requested by CRAN: https://github.com/eddelbuettel/rcppgsl/commit/d6cb0261e2736e7ddad1323c13b9a627d2507c89#diff-c5776ec1a71fecf2707202dd685bec29
@@ -32,9 +34,11 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 * How can I check on Windows?
 
 
+
 Completed
 ---------
 
+* It is much faster to include `PACKAGE = "fastrank"` in the R wrapper
 * It is faster to byte-compile the R wrapper
 * It is slower to pass length separately, `.Call("fastrank_", x, ties)` is faster than `.Call("fastrank_", x, length(x), ties)`
 * We have settled on Quicksort with insertion sort when vector length &le; 20

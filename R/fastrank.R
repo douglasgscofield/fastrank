@@ -69,7 +69,7 @@ NULL
 #                                        "min")) {
 # TODO: manage ties.method, how does the internal rank do it?
 fastrank <- function(x, ties.method = "average") {
-    .Call("fastrank_", x, ties.method)
+    .Call("fastrank_", x, ties.method, PACKAGE = "fastrank")
 }
 
 
@@ -103,6 +103,6 @@ fastrank <- function(x, ties.method = "average") {
 #' @export fastrank_num_avg
 #'
 fastrank_num_avg <- function(x) {
-    .Call("fastrank_num_avg_", x)
+    .Call("fastrank_num_avg_", x, PACKAGE = "fastrank")
 }
 

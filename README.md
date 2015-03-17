@@ -733,11 +733,11 @@ Unit: microseconds
 ```
 
 
-
 ## `fastrank` vs. `fastrank_num_avg`
 
-The benefit of the direct interface more clear with shorter vectors, but the
-difference really isn't that great.  This needs more benchmarking.
+**Result:** The benefit of the direct interface more clear with shorter vectors, but the
+difference really isn't that great.
+
 
 ```R
 > microbenchmark(rank(y), rank_new(y), fastrank(y), fastrank_num_avg(y), times=100000)
@@ -804,6 +804,101 @@ Unit: microseconds
  fastrank_num_avg(y) 111.513 119.8810 161.6919 122.2870 159.6305 24007.11 10000
             frnac(y) 111.481 119.6720 163.0280 121.7155 158.8405 25117.82 10000
 ```
+
+## `PACKAGE = "fastrank"` in R wrapper, and retrying `.C`
+
+**Result:**  Whoa... **major** jump in performance, and forgetting `.C` for good.
+
+I started doing reading about `.C`, `.Call`, `.Internal`, and `.External`, and
+again ran across the advice to specify `.Call(..., PACKAGE = "fastrank")`.  Why
+did I stop doing this?  I thought registration took care of this for me, but
+apparently it does not give me all the benefit.
+
+I also learned to specify `.C(..., DUP = FALSE, NAOK = TRUE, PACKAGE =
+"fastrank")`, so thought to retry `.C`, though R's own docs for it say its
+performance isn't as good as `.Call`, and along the way I thought I would retry
+the options I just mentioned on `.Call`, too.
+
+I went back to <https://github.com/douglasgscofield/fastrank/commit/23595574ab10da872ea53fa0ad53070969413274> to get code for `fastrank_num_avg_C`.
+
+```R
+> fastrank_num_avg
+function(x) {
+    .Call("fastrank_num_avg_", x, PACKAGE = "fastrank")
+}
+<environment: namespace:fastrank>
+> fastrank_num_avg_C
+function(x) {
+    .C("fastrank_num_avg_C_", as.numeric(x), as.integer(length(x)),
+       double(length(x)), NAOK = TRUE, DUP = FALSE, PACKAGE = "fastrank")[[3]]
+<environment: namespace:fastrank>
+> frcna = cmpfun(fastrank_num_avg, options=list(optimize=3))
+> y <- y.rev
+> frcnac = cmpfun(fastrank_num_avg_C, options=list(optimize=3))
+> microbenchmark(rank_new(y), fastrank_num_avg(y), frcna(y), fastrank_num_avg_C(y), frcnac(y), times=100000)
+Unit: nanoseconds
+                  expr  min   lq     mean median   uq      max neval
+           rank_new(y)  692 1054 1198.351   1146 1258   793828 1e+05
+   fastrank_num_avg(y)  923 1251 1400.316   1355 1463   761700 1e+05
+              frcna(y)  866 1243 1387.557   1348 1451   742734 1e+05
+ fastrank_num_avg_C(y) 2389 2946 3221.436   3116 3303  1670381 1e+05
+             frcnac(y) 2253 2835 3069.196   2991 3158   754608 1e+05
+> y <- yy.rev
+> microbenchmark(rank_new(y), fastrank_num_avg(y), frcna(y), fastrank_num_avg_C(y), frcnac(y), times=100000)
+Unit: microseconds
+                  expr   min    lq     mean median    uq       max neval
+           rank_new(y) 2.631 3.076 4.222389  3.207 3.363 42883.400 1e+05
+   fastrank_num_avg(y) 1.610 2.025 2.540816  2.156 2.306  9490.605 1e+05
+              frcna(y) 1.536 2.026 2.445458  2.156 2.298  7042.351 1e+05
+ fastrank_num_avg_C(y) 3.204 3.857 5.306157  4.060 4.302 10366.510 1e+05
+             frcnac(y) 3.021 3.750 4.870311  3.945 4.178  7749.982 1e+05
+> y <- yyy.rev
+> microbenchmark(rank_new(y), fastrank_num_avg(y), frcna(y), fastrank_num_avg_C(y), frcnac(y), times=1000)
+Unit: microseconds
+                  expr     min       lq     mean   median       uq      max neval
+           rank_new(y) 278.223 284.1030 323.5126 284.7050 286.2925 8409.026  1000
+   fastrank_num_avg(y)  98.264 106.1365 128.9113 106.5320 107.0055 8448.284  1000
+              frcna(y)  98.141 106.2425 112.1877 106.6025 107.0620  466.931  1000
+ fastrank_num_avg_C(y) 107.054 115.8440 139.7009 116.3220 117.0055 8113.758  1000
+             frcnac(y) 106.848 115.7135 145.7971 116.1490 116.6685 8097.104  1000
+```
+
+
+## Best benchmarking results so far
+
+**Result:**  We are *almost* as fast as `.Internal(rank(...))` for vectors length 10, and the direct routines are about 10% faster than the general routine for short vectors, about 5% faster for 100 vectors, and essentially no difference for 10000 vectors.
+
+```R
+> frc = cmpfun(fastrank, options=list(optimize=3))
+> y <- y.rev
+> microbenchmark(rank_new(y), fastrank(y), frc(y), fastrank_num_avg(y), frcna(y), times=100000)
+Unit: nanoseconds
+                expr  min   lq     mean median   uq     max neval
+         rank_new(y)  697  878 1039.175    937 1026 2436410 1e+05
+         fastrank(y) 1000 1157 1288.889   1229 1331  785916 1e+05
+              frc(y)  963 1119 1267.990   1192 1291  755307 1e+05
+ fastrank_num_avg(y)  886 1044 1181.111   1113 1197 2219413 1e+05
+            frcna(y)  846 1015 1129.037   1084 1172  764383 1e+05
+> y <- yy.rev
+> microbenchmark(rank_new(y), fastrank(y), frc(y), fastrank_num_avg(y), frcna(y), times=100000)
+Unit: microseconds
+                expr   min    lq     mean median    uq      max neval
+         rank_new(y) 2.597 2.906 3.754443  3.029 3.218 10811.45 1e+05
+         fastrank(y) 1.754 2.017 2.950814  2.145 2.401 11680.76 1e+05
+              frc(y) 1.714 1.996 3.359293  2.135 2.394 12105.77 1e+05
+ fastrank_num_avg(y) 1.634 1.906 2.901634  2.022 2.225 10798.09 1e+05
+            frcna(y) 1.611 1.888 2.698567  2.015 2.224 11076.25 1e+05
+> y <- yyy.rev
+> microbenchmark(rank_new(y), fastrank(y), frc(y), fastrank_num_avg(y), frcna(y), times=5000)
+Unit: microseconds
+                expr     min       lq     mean   median       uq       max neval
+         rank_new(y) 277.910 283.8145 311.0948 284.5125 286.2915  5120.002  5000
+         fastrank(y) 107.366 116.2625 154.6016 117.4350 119.2650 37400.171  5000
+              frc(y) 107.994 116.2720 147.2273 117.3980 119.1905  4979.048  5000
+ fastrank_num_avg(y) 107.891 116.2345 142.0935 117.3810 118.9535  5063.963  5000
+            frcna(y) 107.962 116.2380 136.6245 117.5415 119.0410  4836.530  5000
+```
+
 
 ## Remaining performance questions
 
