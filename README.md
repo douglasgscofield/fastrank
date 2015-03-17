@@ -814,6 +814,23 @@ but there are a few more general points to explore.
 * What does GC Torture mean when it comes to benchmarking?
 * In general, how does `.Internal(rank(...))` receive its arguments, and return its results?  In the benchmarks above there are such performance differences between different interface options.
 
+## Remaining implementation questions
+
+I must create a large set of sets for all `ties.method` values that verify that `rank` and `fastrank` and the direct entry points are absolutely identical in their results, including class of the returned vector.  One method to pay attention to is `ties.method = "first"`.  Is this stable for us?
+
+```R
+> y <- sample(10,10,repl=T)
+> y
+ [1] 8 6 8 3 3 6 3 9 6 6
+> rank(y,ties="first")
+ [1]  8  4  9  1  2  5  3 10  6  7
+> y <- as.numeric(y)
+> fastrank(y, "first")
+ [1]  8  4  9  1  2  5  3 10  6  7
+>
+```
+
+
 
 
 LICENSE

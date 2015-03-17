@@ -1,6 +1,7 @@
 TODO
 ----
 
+* Create a huge number of tests that check that `rank` and `fastrank` and direct entries are absolutely identical in all of them
 * Learn how `.Internal` passes arguments and results
 * Restore and debug complex vector support in `fastrank`
 * Is it OK to do the shortcut evaluation of `ties.method`?
