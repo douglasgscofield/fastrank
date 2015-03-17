@@ -135,6 +135,7 @@ benchmarking are now completed and the main structure is in place.
 [Rcpp]: http://cran.r-project.org/web/packages/Rcpp/index.html
 
 
+
 How does R handle `.Internal`?
 ==============================
 
@@ -156,6 +157,8 @@ Performance Progress
 
 **Note:** This narrative progresses in time and shows the various improvements
 as they happened.  See the end for the latest results.
+
+
 
 ## Initial results with `fastrank_numeric_average`
 
@@ -185,6 +188,7 @@ Unit: microseconds
  rank_new(xx)  2.403  2.9230  3.814224  3.144  3.3095 2596.105 10000
  fastrank(xx)  3.192  3.7285  6.537482  5.174  5.5830 2637.797 10000
 ```
+
 
 
 ## Faster after registering `fastrank_numeric_average`
@@ -228,6 +232,7 @@ Unit: microseconds
 ```
 
 However I still cannot call the C routine directly within R, `.Call` is always required.  My docs for the package should definitely include the `.Call` interface to save a bit more time.
+
 
 
 ## General `fastrank`
@@ -341,9 +346,12 @@ Unit: microseconds
 Note for `fastrank` we get a large performance boost by avoiding the R wrapper.
 
 
+
 ## Which type of sort?
 
 This is now completed, so...
+
+
 
 ### Summary of sort routine benchmarking
 
@@ -353,6 +361,8 @@ This is now completed, so...
 * All Quicksort and shellsort methods are faster than `R_orderVector`, and get faster with vector length.
 
 R's default Sedgwick shellsort is very good, but quicksort is better especially with the insertion sort speedup.  That is what I will go with.
+
+
 
 ###  R_orderVector vs. Quicksort
 
@@ -404,6 +414,8 @@ Unit: microseconds
  fastrank(yyy, sort = 1L) 2603.435 2633.9570 2770.0089 2675.6040 2733.2100  5759.185  1000
  fastrank(yyy, sort = 2L)  771.286  787.1900  838.3540  802.7980  822.3890  3434.097  1000
 ```
+
+
 
 ### Quicksort vs. three different shellsorts
 
@@ -510,6 +522,8 @@ Unit: microseconds
  fastrank(yyy, sort = 4L)  930.95  955.53 1015.77  973.68  995.82 6791.8  1000
  fastrank(yyy, sort = 5L) 1042.63 1070.03 1140.68 1087.28 1112.41 6823.2  1000
 ```
+
+
 
 ### Shellsort vs. Quicksort with insertion-sort shortcuts
 
@@ -859,19 +873,22 @@ Unit: microseconds
 
 ## `PACKAGE = "fastrank"` in R wrapper, and retrying `.C`
 
-**Result:**  Whoa... **major** jump in performance, and forgetting `.C` for good.
+**Result:**  Whoa... **major** jump in performance from using `PACKAGE = "fastrank"`, and forgetting `.C` for good.
 
 I started doing reading about `.C`, `.Call`, `.Internal`, and `.External`, and
 again ran across the advice to specify `.Call(..., PACKAGE = "fastrank")`.  Why
 did I stop doing this?  I thought registration took care of this for me, but
 apparently it does not give me all the benefit.
 
-I also learned to specify `.C(..., DUP = FALSE, NAOK = TRUE, PACKAGE =
-"fastrank")`, so thought to retry `.C`, though R's own docs for it say its
-performance isn't as good as `.Call`, and along the way I thought I would retry
-the options I just mentioned on `.Call`, too.
+I also learned through more research there are more options for `.C`,
+specifically `.C(..., DUP = FALSE, NAOK = TRUE, PACKAGE = "fastrank")`, so
+thought to retry `.C`, though R's own docs for it say its performance isn't as
+good as `.Call`, and along the way I thought I would retry the options I just
+mentioned on `.Call`, too.
 
-I went back to <https://github.com/douglasgscofield/fastrank/commit/23595574ab10da872ea53fa0ad53070969413274> to get code for `fastrank_num_avg_C`.
+I went back to my [`.C` call commit][C_call_commit] to get code for `fastrank_num_avg_C`.
+
+[C_call_commit]: https://github.com/douglasgscofield/fastrank/commit/23595574ab10da872ea53fa0ad53070969413274 
 
 ```R
 > fastrank_num_avg
@@ -914,6 +931,7 @@ Unit: microseconds
  fastrank_num_avg_C(y) 107.054 115.8440 139.7009 116.3220 117.0055 8113.758  1000
              frcnac(y) 106.848 115.7135 145.7971 116.1490 116.6685 8097.104  1000
 ```
+
 
 
 Best benchmarking results so far
