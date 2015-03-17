@@ -1,6 +1,9 @@
 TODO
 ----
 
+* Move QUICKSORT_INSERTION_CUTOFF to Makevars
+* Determine QUICKSORT_INSERTION_CUTOFF empirically, like with `configure`?
+* Continue genericifying Quicksort, `fastrank` and the other interfaces
 * Create a huge number of tests that check that `rank` and `fastrank` and direct entries are absolutely identical in all of them
 * Learn how `.Internal` passes arguments and results
 * Restore and debug complex vector support in `fastrank`
