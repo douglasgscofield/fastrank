@@ -16,9 +16,12 @@
 
 /* FUNCTION PROTOTYPE DECLARATION *********************************/
 
-static void fr_quicksort_double_i_(const double * a,
-                                   MY_SIZE_T indx[],
-                                   const MY_SIZE_T n);
+static void 
+fr_quicksort_integer_i_(const int * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+
+static void 
+fr_quicksort_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+
 
 SEXP fastrank_(SEXP s_x, SEXP s_tm);
 SEXP fastrank_num_avg_(SEXP s_x);
@@ -30,7 +33,7 @@ SEXP fastrank_num_avg_(SEXP s_x);
 static R_CallMethodDef callMethods[] = {
     {"fastrank_",         (DL_FUNC) &fastrank_,         2},
     {"fastrank_num_avg_", (DL_FUNC) &fastrank_num_avg_, 1},
-    {NULL, NULL, 0}
+    {NULL,                NULL,                         0}
 };
 
 void R_init_fastrank(DllInfo *info) {
@@ -55,37 +58,57 @@ void R_init_fastrank(DllInfo *info) {
 
 #define QUICKSORT_INSERTION_CUTOFF 20
 
-static void fr_quicksort_double_i_ (const double * a,
-                                    MY_SIZE_T indx[],
-                                    const MY_SIZE_T n) {
-    double p;
-    MY_SIZE_T i, j, it;
-    if (n <= QUICKSORT_INSERTION_CUTOFF) {
-        /* use insertion sort */
-        if (DEBUG) {
-            Rprintf("insertion start\n");
-            for (i = 0; i < n; ++i) Rprintf("i %d indx %d a %f\n", i, indx[i], a[indx[i]]);
-        }
-        for (i = 1; i < n; ++i) {
-            it = indx[i];
-            for (j = i; j > 0 && a[indx[j - 1]] > a[it]; --j) {
-                indx[j] = indx[j - 1];
-            }
-            indx[j] = it;
-        }
-        if (DEBUG) {
-            Rprintf("insertion end\n");
-            for (i = 0; i < n; ++i) Rprintf("i %d indx %d a %f\n", i, indx[i], a[indx[i]]);
-        }
-        return;
+#define GREATER(__A, __B) (__A > __B)
+#define LESSER(__A, __B)  (__A < __B)
+#define C_GREATER(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
+#define C_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
+
+#define FR_quicksort_body(__TYPE, __GREATER, __LESSER) \
+    MY_SIZE_T i; /* used as param outside of body */ \
+    { \
+    __TYPE p; \
+    MY_SIZE_T j, it; \
+    if (n <= QUICKSORT_INSERTION_CUTOFF) { \
+        for (i = 1; i < n; ++i) { \
+            it = indx[i]; \
+            for (j = i; j > 0 && GREATER(a[indx[j - 1]], a[it]); --j) { \
+                indx[j] = indx[j - 1]; \
+            } \
+            indx[j] = it; \
+        } \
+        return; \
+    } \
+    p = a[indx[n / 2]]; \
+    for (i = 0, j = n - 1; ; i++, j--) { \
+        while (LESSER(a[indx[i]], p)) i++; \
+        while (LESSER(p, a[indx[j]])) j--; \
+        if (i >= j) break; \
+        it = indx[i]; indx[i] = indx[j]; indx[j] = it; \
+    } \
     }
-    p = a[indx[n / 2]];
-    for (i = 0, j = n - 1; ; i++, j--) {
-        while (a[indx[i]] < p) i++;
-        while (p < a[indx[j]]) j--;
-        if (i >= j) break;
-        it = indx[i]; indx[i] = indx[j]; indx[j] = it;
-    }
+
+
+
+static void
+fr_quicksort_integer_i_(const int * a, 
+                        MY_SIZE_T indx[], 
+                        const MY_SIZE_T n) {
+
+    FR_quicksort_body(int, GREATER, LESSER)
+
+    fr_quicksort_integer_i_(a, indx,     i    );
+    fr_quicksort_integer_i_(a, indx + i, n - i);
+}
+
+
+
+static void
+fr_quicksort_double_i_ (const double * a, 
+                        MY_SIZE_T indx[], 
+                        const MY_SIZE_T n) {
+
+    FR_quicksort_body(double, GREATER, LESSER)
+
     fr_quicksort_double_i_(a, indx,     i    );
     fr_quicksort_double_i_(a, indx + i, n - i);
 }
@@ -95,8 +118,8 @@ static void fr_quicksort_double_i_ (const double * a,
 /* General ranking (no characters), called from fastrank() wrapper */
 SEXP fastrank_(SEXP s_x, SEXP s_tm) {
 
-    if (TYPEOF(s_x) != REALSXP)
-        error(" for 'sort' benchmarking, x must be numeric");
+    if (TYPEOF(s_x) != REALSXP && TYPEOF(s_x) != INTSXP && TYPEOF(s_x) != LGLSXP)
+        error("x must be numeric or integer or logical");
     if (TYPEOF(s_x) == STRSXP)
         error("'character' values not allowed");
 
@@ -159,8 +182,19 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm) {
         Rprintf("\n");
     }
 
-    /* sort indices!! */
-    fr_quicksort_double_i_(REAL(s_x), indx, n);
+    /* sort indices!!  probably should move this to within the big switch */
+    switch (TYPEOF(s_x)) {
+    case LGLSXP:
+    case INTSXP:
+        fr_quicksort_integer_i_(INTEGER(s_x), indx, n);
+        break;
+    case REALSXP:
+        fr_quicksort_double_i_(REAL(s_x), indx, n);
+        break;
+    default:
+        error("Unsupported type for 'x'");
+        break;
+    }
 
     /* indx[i] holds the index of the value in s_x that belongs in position i,
      * e.g., indx[0] holds the position in s_x of the lowest value */
