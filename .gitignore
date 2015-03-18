@@ -29,5 +29,6 @@ inst/doc
 src/tst/test
 src/tst/test_random
 src/tst/test_shellsort
+src/tst/test_quicksort
 src/tst/sample
 *.dSYM
