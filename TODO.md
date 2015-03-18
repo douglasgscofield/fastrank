@@ -1,6 +1,7 @@
 TODO
 ----
 
+* Could I handle `character` and `NA`-containing data by switching to `R_orderVector` for these data types?
 * Use a stable sort for `"first"`... actually I might be able to always use a stable sort, since I have the index vector already I only exchange equivalent values if their index values are inverted.
 * Compare against dual-pivot quicksort, see papers in Dropbox/_2015-all/__fastrank/
 * Move QUICKSORT_INSERTION_CUTOFF to Makevars
