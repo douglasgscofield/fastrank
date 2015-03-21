@@ -1,5 +1,7 @@
 CC = gcc
-CFLAGS = -g3 -std=c99
+CFLAGS = -g3 -ggdb -std=c99
+
+all: test_quicksort
 
 clean:
-	rm -f test test.o sample sample.o test_random test_random.o
+	rm -f test *.o sample test_random test_shellsort test_quicksort

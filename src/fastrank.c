@@ -23,7 +23,7 @@ static void
 fr_quicksort_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
 
-SEXP fastrank_(SEXP s_x, SEXP s_tm);
+SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
 
 
@@ -31,7 +31,7 @@ SEXP fastrank_num_avg_(SEXP s_x);
 /* FUNCTION REGISTRATION *********************************/
 
 static R_CallMethodDef callMethods[] = {
-    {"fastrank_",         (DL_FUNC) &fastrank_,         2},
+    {"fastrank_",         (DL_FUNC) &fastrank_,         3},
     {"fastrank_num_avg_", (DL_FUNC) &fastrank_num_avg_, 1},
     {NULL,                NULL,                         0}
 };
@@ -70,6 +70,7 @@ void R_init_fastrank(DllInfo *info) {
 #define LESSER(__A, __B)  (__A < __B)
 #define CPLX_GREATER(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
 #define CPLX_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
+#define SWAP(__T, __A, __B) {__T t = __A; __A = __B; __B = t; }
 
 #define FR_quicksort_body(__TYPE, __GREATER, __LESSER) \
     MY_SIZE_T i; /* used as param outside of body */ \
@@ -94,6 +95,75 @@ void R_init_fastrank(DllInfo *info) {
         it = indx[i]; indx[i] = indx[j]; indx[j] = it; \
     } \
     }
+
+
+static void
+fr_quicksort3way_integer_i_(const int *     a, 
+                            MY_SIZE_T       indx[],
+                            const MY_SIZE_T n,
+                            const MY_SIZE_T crit_size) {
+
+    MY_SIZE_T i, j, p, q, k;
+
+    //if (n <= 1) return; 
+    //if (n <= QUICKSORT_INSERTION_CUTOFF) {
+    if (n <= crit_size) {
+        for (i = 1; i < n; ++i) {
+            MY_SIZE_T it = indx[i];
+            for (j = i; j > 0 && GREATER(a[indx[j - 1]], a[it]); --j) {
+                indx[j] = indx[j - 1];
+            }
+            indx[j] = it;
+        }
+        return;
+    }
+
+    int pvt = a[indx[n - 1]];
+
+    for (i = 0; a[indx[i]] < pvt; ++i);
+    for (j = n - 2; pvt < a[indx[j]] && j > 0; --j);
+    p = 0;
+    q = n - 1;
+    if (i < j) {
+        SWAP(MY_SIZE_T, indx[i], indx[j]);
+        if (a[indx[i]] == pvt)
+            SWAP(int, indx[p], indx[i]);
+        if (a[indx[j]] == pvt) {
+            q--;
+            SWAP(MY_SIZE_T, indx[q], indx[j]);
+        }
+        for (;;) {
+            while (a[indx[++i]] < pvt) ;  
+            while (pvt < a[indx[--j]])
+                if (j == 0) break; 
+            if (i >= j) break;
+            SWAP(MY_SIZE_T, indx[i], indx[j]);
+            if (a[indx[i]] == pvt) { 
+                if (p) p++; 
+                SWAP(MY_SIZE_T, indx[p], indx[i]);
+            } 
+            if (a[indx[j]] == pvt) {
+                q--;
+                SWAP(MY_SIZE_T, indx[q], indx[j]);
+            }
+        }
+    }
+    SWAP(MY_SIZE_T, indx[i], indx[n - 1]); 
+    j = i - 1;
+    i++;
+    for (k = 0; k < p; k++, j--)
+        SWAP(MY_SIZE_T, indx[k], indx[j]); 
+    for (k = n - 2; k > q; k--, i++)
+        SWAP(MY_SIZE_T, indx[i], indx[k]);
+    /*
+    printf("n=%2d  a[0..%2d]: ", n, n - 1);
+    for (int t = 0; t < n; ++t) printf("[%2d] %2d  ", t, a[t]);
+    printf("\n");
+    */
+
+    fr_quicksort3way_integer_i_(a, indx,     j + 1, crit_size);
+    fr_quicksort3way_integer_i_(a, indx + i, n - i, crit_size);
+}
 
 
 
@@ -124,12 +194,15 @@ fr_quicksort_double_i_ (const double * a,
 
 
 /* General ranking (no characters), called from fastrank() wrapper */
-SEXP fastrank_(SEXP s_x, SEXP s_tm) {
+SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 
     if (TYPEOF(s_x) != REALSXP && TYPEOF(s_x) != INTSXP && TYPEOF(s_x) != LGLSXP)
         error("x must be numeric or integer or logical");
     if (TYPEOF(s_x) == STRSXP)
         error("'character' values not allowed");
+    int sort_method = INTEGER(s_sort)[0];
+    if (sort_method < 1 || sort_method > 4)
+        error("'sort.method' must be between 1 and 4");
 
     MY_SIZE_T n = MY_LENGTH(s_x);
     if (DEBUG) Rprintf("length of s_x = %d\n", n);
@@ -194,7 +267,23 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm) {
     switch (TYPEOF(s_x)) {
     case LGLSXP:
     case INTSXP:
-        fr_quicksort_integer_i_(INTEGER(s_x), indx, n);
+        switch(sort_method) {
+        case 1:
+            fr_quicksort_integer_i_(INTEGER(s_x), indx, n);
+            break;
+        case 2:
+            fr_quicksort3way_integer_i_(INTEGER(s_x), indx, n, 1);
+            break;
+        case 3:
+            fr_quicksort3way_integer_i_(INTEGER(s_x), indx, n, 10);
+            break;
+        case 4:
+            fr_quicksort3way_integer_i_(INTEGER(s_x), indx, n, 20);
+            break;
+        default:
+            error("unknown sort_method");
+            break;
+        }
         break;
     case REALSXP:
         fr_quicksort_double_i_(REAL(s_x), indx, n);

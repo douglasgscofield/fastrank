@@ -842,6 +842,314 @@ Unit: microseconds
 
 
 
+Quicksort with 3-way partition
+==============================
+
+After some research I found that perhaps using Sedgwick's Quicksort with a 3-way partition might be faster in general, is definitely faster with ties, and is also supposedly immune to the O(n<sup>2</sup>) case that can affect Quicksort with pathological input.
+
+```R
+> fastrank
+function (x, ties.method = "average", sort.method = 1L)
+{
+    .Call("fastrank_", x, ties.method, sort.method, PACKAGE = "fastrank")
+}
+<bytecode: 0x7fa0a70048e8>
+<environment: namespace:fastrank>
+> y <- sample(5, 10, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: nanoseconds
+                          expr  min   lq     mean median     uq     max neval
+                   rank_new(y)  680  883 1062.489    958 1102.0  792485 1e+05
+ fastrank(y, sort.method = 1L) 1027 1232 1502.280   1349 1558.5 1739746 1e+05
+ fastrank(y, sort.method = 2L) 1072 1262 1534.001   1380 1596.0  820538 1e+05
+> y <- y.rev
+> length(y)
+[1] 10
+> microbenchmark(rank_new(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: nanoseconds
+                          expr  min   lq     mean median   uq     max neval
+                   rank_new(y)  699  891 1038.205    956 1057 1698491 1e+05
+ fastrank(y, sort.method = 1L) 1057 1243 1435.840   1336 1482 1730935 1e+05
+ fastrank(y, sort.method = 2L) 1065 1243 1445.708   1336 1482  803340 1e+05
+> y <- sample(50, 100, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: microseconds
+                          expr   min    lq     mean median    uq      max neval
+                   rank_new(y) 2.560 2.891 3.697743  3.010 3.177 11434.20 1e+05
+ fastrank(y, sort.method = 1L) 2.109 2.416 3.604674  2.561 2.797 11628.91 1e+05
+ fastrank(y, sort.method = 2L) 2.197 2.522 3.909937  2.667 2.907 12898.05 1e+05
+> y <- yy.rev
+> length(y)
+[1] 100
+> microbenchmark(rank_new(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=100000)
+Unit: microseconds
+                          expr   min    lq     mean median    uq      max neval
+                   rank_new(y) 2.613 2.924 4.125579  3.029 3.166 12094.50 1e+05
+ fastrank(y, sort.method = 1L) 1.737 2.025 2.914672  2.143 2.303 10527.01 1e+05
+ fastrank(y, sort.method = 2L) 1.747 2.025 2.895402  2.141 2.302 12488.90 1e+05
+> y <- yyy.rev
+> microbenchmark(rank_new(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=10000)
+Unit: microseconds
+                          expr     min       lq     mean   median       uq      max neval
+                   rank_new(y) 278.635 291.6125 347.4967 293.0955 301.5915 11250.21 10000
+ fastrank(y, sort.method = 1L)  98.693 108.0700 179.5615 110.0165 113.6780 10972.93 10000
+ fastrank(y, sort.method = 2L)  98.405 108.1315 187.3787 110.0370 114.2685 45997.45 10000
+> y <- sample(100, 10000, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort.method=1L), fastrank(y, sort.method=2L), times=10000)
+Unit: microseconds
+                          expr      min        lq      mean    median        uq      max neval
+                   rank_new(y) 1038.232 1080.2040 1163.3656 1090.5745 1111.9700 50102.37 10000
+ fastrank(y, sort.method = 1L)  400.041  422.9405  500.1046  427.3655  440.6475 11939.68 10000
+ fastrank(y, sort.method = 2L)  344.864  366.2065  448.0773  371.5830  383.2650 11896.09 10000
+```
+
+Note `fastrank` is byte-compiled, which is nice because I asked in `DESCRIPTION` for that.  Thanks `devtools`!
+
+Let's see if byte compiling specific interfaces helps.
+
+```R
+> fr1 <- function(x) .Call("fastrank_", x, "average", 1L, PACKAGE="fastrank")
+> fr2 <- function(x) .Call("fastrank_", x, "average", 2L, PACKAGE="fastrank")
+> fr1c <- cmpfun(fr1)
+> fr2c <- cmpfun(fr2)
+> ######  sample size 10, with duplicates
+> y <- sample(5, 10, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: nanoseconds
+                   expr  min   lq     mean median   uq     max neval
+            rank_new(y)  692  911 1041.354    980 1096   45534 1e+05
+ fastrank(y, sort = 1L) 1084 1324 1547.230   1430 1587 3824390 1e+05
+                 fr1(y)  685  840  988.693    914 1034  790368 1e+05
+                fr1c(y)  870 1053 1217.226   1134 1258  800951 1e+05
+ fastrank(y, sort = 2L) 1115 1355 1594.780   1461 1620 2909932 1e+05
+                 fr2(y)  696  869 1018.013    945 1064  818223 1e+05
+                fr2c(y)  876 1081 1246.462   1164 1288  787045 1e+05
+> ######  sample size 10, reverse values with no duplicates
+> y <- y.rev
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: nanoseconds
+                   expr  min   lq     mean median   uq      max neval
+            rank_new(y)  704  925 1072.491    993 1104   782706 1e+05
+ fastrank(y, sort = 1L) 1113 1345 1547.299   1446 1600   785261 1e+05
+                 fr1(y)  694  848 1297.826    923 1038 29952713 1e+05
+                fr1c(y)  871 1069 1216.092   1148 1264   409102 1e+05
+ fastrank(y, sort = 2L) 1118 1346 1585.944   1447 1600  4207437 1e+05
+                 fr2(y)  693  854 1002.949    929 1045   772482 1e+05
+                fr2c(y)  876 1069 1223.718   1150 1269   411338 1e+05
+> ######  sample size 100, with duplicates
+> y <- sample(50, 100, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(y) 2.588 2.963 3.719891  3.092 3.286 15985.69 1e+05
+ fastrank(y, sort = 1L) 2.103 2.504 3.354464  2.678 2.967 15702.90 1e+05
+                 fr1(y) 1.657 1.961 2.749146  2.086 2.294 16637.08 1e+05
+                fr1c(y) 1.885 2.210 4.010884  2.354 2.583 19012.69 1e+05
+ fastrank(y, sort = 2L) 2.191 2.615 3.938233  2.789 3.078 16205.94 1e+05
+                 fr2(y) 1.762 2.075 3.005932  2.203 2.411 16372.79 1e+05
+                fr2c(y) 1.972 2.334 3.438862  2.481 2.714 15953.80 1e+05
+> ######  sample size 100, reverse values with no duplicates
+> y <- yy.rev
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(y) 2.618 3.016 3.780025  3.151 3.365 17217.50 1e+05
+ fastrank(y, sort = 1L) 1.811 2.194 3.393420  2.364 2.660 19684.83 1e+05
+                 fr1(y) 1.364 1.648 2.434924  1.774 1.994 16922.72 1e+05
+                fr1c(y) 1.576 1.898 3.161376  2.042 2.284 16247.44 1e+05
+ fastrank(y, sort = 2L) 1.795 2.197 3.160473  2.366 2.661 16168.54 1e+05
+                 fr2(y) 1.364 1.647 2.878037  1.774 1.995 16565.69 1e+05
+                fr2c(y) 1.575 1.904 3.145444  2.045 2.289 15545.79 1e+05
+> ######  sample size 10000, with duplicates
+> y <- sample(5000, 10000, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=1000)
+Unit: microseconds
+                   expr     min       lq      mean   median        uq       max neval
+            rank_new(y) 959.185 993.6450 1038.6746 999.6695 1020.2730  4927.456  1000
+ fastrank(y, sort = 1L) 587.412 615.2690  682.8584 621.9745  641.9020 13601.412  1000
+                 fr1(y) 588.775 613.9570  714.5013 620.1530  640.2160 14106.139  1000
+                fr1c(y) 588.776 614.1870  756.6591 620.4905  637.3420 50931.753  1000
+ fastrank(y, sort = 2L) 644.710 672.6145  753.7942 679.4320  701.2485 13943.645  1000
+                 fr2(y) 639.009 670.5390  732.9197 677.6955  697.2705 12863.997  1000
+                fr2c(y) 642.183 672.0765  787.6640 679.3515  701.2445 13974.255  1000
+> ######  sample size 10000, reverse values with no duplicates
+> y <- yyy.rev
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=1000)
+Unit: microseconds
+                   expr     min       lq     mean   median       uq       max neval
+            rank_new(y) 280.615 291.9445 387.2872 294.3330 304.3200 11900.250  1000
+ fastrank(y, sort = 1L)  98.953 108.6595 197.6052 110.4160 116.9605 11782.518  1000
+                 fr1(y)  98.192 107.2210 175.1677 109.1710 112.9595 11993.266  1000
+                fr1c(y)  98.475 107.5405 210.2342 109.7310 116.0460 13936.880  1000
+ fastrank(y, sort = 2L)  98.979 108.1145 134.9608 110.2195 114.5580  1739.012  1000
+                 fr2(y)  97.969 106.6640 181.8313 109.1095 112.7645 10240.242  1000
+                fr2c(y)  98.463 107.5310 183.9525 109.7285 113.8800 10325.295  1000
+```
+
+The `.Call` interface now beats `.Internal(rank(...))` for short vectors!  But note that for some reason the 100-length vector results show that the 3-way partition is slower there.  Also, these are a bit mixed overall.
+
+If we increase the amount of duplicates in a vector, we see the 3-way partition starts to win.  If duplication is about 50%, it is still definitely slower, but as duplication gets higher, it starts to win more.
+
+```R
+> y <- sample(5000, 10000, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=1000)
+Unit: microseconds
+                   expr     min        lq      mean    median        uq      max neval
+            rank_new(y) 966.468 1000.5490 1082.5297 1006.4610 1026.2560 12113.49  1000
+ fastrank(y, sort = 1L) 562.210  589.7055  662.7955  596.3340  614.1285 11847.68  1000
+                 fr1(y) 562.618  588.6365  671.1227  594.7890  613.3205 10356.20  1000
+                fr1c(y) 561.665  588.5735  723.3998  595.6475  614.8445 11688.00  1000
+ fastrank(y, sort = 2L) 657.182  686.2195  769.7319  693.1440  713.6045 11014.39  1000
+                 fr2(y) 654.529  684.1170  764.0139  690.6140  708.7600 13748.57  1000
+                fr2c(y) 656.331  685.2770  797.1273  691.4360  709.4355 12627.21  1000
+> y <- sample(500, 10000, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=1000)
+Unit: microseconds
+                   expr      min        lq      mean    median        uq      max neval
+            rank_new(y) 1013.006 1052.4315 1152.3892 1061.6020 1083.0615 12354.54  1000
+ fastrank(y, sort = 1L)  492.571  510.4775  608.2420  518.2590  532.1260 11690.82  1000
+                 fr1(y)  486.318  508.6965  568.4310  516.5840  530.2780 12081.00  1000
+                fr1c(y)  485.614  508.3325  613.7188  516.4935  529.4050 14091.74  1000
+ fastrank(y, sort = 2L)  468.217  492.2950  569.2194  499.6180  512.9775 11737.48  1000
+                 fr2(y)  466.483  491.0715  592.4809  498.3340  509.6030 11304.74  1000
+                fr2c(y)  468.540  492.4000  551.0869  499.4470  513.0530 10736.51  1000
+> y <- sample(50, 10000, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=1000)
+Unit: microseconds
+                   expr      min        lq      mean    median        uq      max neval
+            rank_new(y) 1030.834 1066.4945 1138.1344 1079.3570 1099.1025 15073.78  1000
+ fastrank(y, sort = 1L)  371.917  391.3855  501.5864  395.9875  407.9205 13028.86  1000
+                 fr1(y)  373.220  389.9215  484.8467  394.2065  405.0255 12156.66  1000
+                fr1c(y)  371.688  390.7315  491.0031  395.2180  406.9440 12856.46  1000
+ fastrank(y, sort = 2L)  312.154  331.6020  449.2000  335.8325  347.0530 47197.39  1000
+                 fr2(y)  312.413  330.3155  399.4999  334.2945  344.1680 11614.32  1000
+                fr2c(y)  314.578  330.6795  393.1090  334.5200  344.3315 11659.18  1000
+```
+
+and with 100-length vectors:
+
+```R
+> y <- sample(50, 100, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=1000)
+Unit: microseconds
+                   expr   min     lq     mean median     uq     max neval
+            rank_new(y) 2.724 2.9870 3.244548 3.0830 3.2110 103.229  1000
+ fastrank(y, sort = 1L) 2.177 2.4645 2.778665 2.5880 2.7370  59.937  1000
+                 fr1(y) 1.709 1.9370 2.151337 2.0445 2.1470  51.409  1000
+                fr1c(y) 1.922 2.1845 2.391617 2.2780 2.3875  52.585  1000
+ fastrank(y, sort = 2L) 2.306 2.5910 2.979199 2.7060 2.8480 147.805  1000
+                 fr2(y) 1.800 2.0585 2.468556 2.1570 2.2645  72.721  1000
+                fr2c(y) 2.025 2.3175 2.564708 2.4235 2.5390  62.670  1000
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(y) 2.605 2.953 3.927903  3.062 3.206 7278.125 1e+05
+ fastrank(y, sort = 1L) 2.118 2.452 3.675650  2.582 2.762 5936.402 1e+05
+                 fr1(y) 1.678 1.925 2.960073  2.031 2.163 6175.568 1e+05
+                fr1c(y) 1.890 2.173 2.993826  2.281 2.412 6247.395 1e+05
+ fastrank(y, sort = 2L) 2.204 2.570 3.819390  2.701 2.880 6306.555 1e+05
+                 fr2(y) 1.788 2.050 2.966094  2.157 2.289 5780.677 1e+05
+                fr2c(y) 1.989 2.298 3.434700  2.410 2.549 5943.264 1e+05
+> y <- sample(50, 100, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(y) 2.592 2.949 3.463259  3.072 3.239 14645.61 1e+05
+ fastrank(y, sort = 1L) 2.159 2.539 3.882530  2.688 2.903 17686.10 1e+05
+                 fr1(y) 1.715 2.000 3.408367  2.116 2.271 17603.46 1e+05
+                fr1c(y) 1.936 2.251 2.943771  2.374 2.543 14830.56 1e+05
+ fastrank(y, sort = 2L) 2.198 2.589 3.621370  2.736 2.956 15227.73 1e+05
+                 fr2(y) 1.767 2.050 3.037245  2.166 2.326 17155.17 1e+05
+                fr2c(y) 1.973 2.303 3.407911  2.430 2.602 14589.64 1e+05
+> y <- sample(5, 100, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fr1c(y), fastrank(y, sort=2L), fr2(y), fr2c(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq       max neval
+            rank_new(y) 2.517 2.851 3.759816  2.971 3.138 18493.234 1e+05
+ fastrank(y, sort = 1L) 1.876 2.263 3.187544  2.414 2.637 16597.418 1e+05
+                 fr1(y) 1.446 1.729 2.929191  1.847 2.013 17567.998 1e+05
+                fr1c(y) 1.665 1.981 2.690818  2.104 2.281 15238.898 1e+05
+ fastrank(y, sort = 2L) 1.928 2.319 2.774504  2.473 2.697   168.675 1e+05
+                 fr2(y) 1.478 1.785 3.460440  1.902 2.066 17143.504 1e+05
+                fr2c(y) 1.693 2.044 3.221233  2.173 2.357 15959.647 1e+05
+```
+
+I do want to try the 3-partition Quicksort.
+
+This quicksort also doesn't use the insertion-sort cutoff, so that is something else to consider.  I added sort method `3L` with an insertion sort cutoff at 10 elements, and `4L` with 20 elements.
+
+```R
+> fr3 <- function(x) .Call("fastrank_", x, "average", 3L, PACKAGE="fastrank")
+> fr4 <- function(x) .Call("fastrank_", x, "average", 4L, PACKAGE="fastrank")
+> y <- sample(5, 10, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fastrank(y, sort=2L), fr2(y), fr3(y), fr4(y), times=100000)
+Unit: nanoseconds
+                   expr  min   lq     mean median   uq      max neval
+            rank_new(y)  687  882 1062.700  956.0 1086   412675 1e+05
+ fastrank(y, sort = 1L) 1074 1318 1540.526 1425.0 1605   412126 1e+05
+                 fr1(y)  679  823 1007.217  895.5 1036   789951 1e+05
+ fastrank(y, sort = 2L) 1132 1356 1882.772 1463.0 1644 25709484 1e+05
+                 fr2(y)  714  864 1037.180  938.0 1078   779412 1e+05
+                 fr3(y)  682  828 1012.557  902.0 1040   792398 1e+05
+                 fr4(y)  675  821 1009.969  894.0 1036   810734 1e+05
+> y <- y.rev
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fastrank(y, sort=2L), fr2(y), fr3(y), fr4(y), times=100000)
+Unit: nanoseconds
+                   expr  min   lq      mean median     uq      max neval
+            rank_new(y)  702  902 1044.8125    965 1077.0   783955 1e+05
+ fastrank(y, sort = 1L) 1116 1328 1534.0430   1427 1575.5   777693 1e+05
+                 fr1(y)  691  836 1018.3608    904 1018.0  3778184 1e+05
+ fastrank(y, sort = 2L) 1105 1329 1796.3544   1427 1576.0 27315201 1e+05
+                 fr2(y)  699  839  977.5353    909 1022.0   435716 1e+05
+                 fr3(y)  695  842  983.3501    913 1025.0   777499 1e+05
+                 fr4(y)  691  834  984.4227    903 1015.0   783804 1e+05
+> y <- sample(50, 100, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fastrank(y, sort=2L), fr2(y), fr3(y), fr4(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(y) 2.471 2.806 3.926862  2.917 3.064 15984.85 1e+05
+ fastrank(y, sort = 1L) 2.099 2.433 3.944974  2.563 2.751 16178.55 1e+05
+                 fr1(y) 1.664 1.887 2.565297  1.998 2.140 15590.56 1e+05
+ fastrank(y, sort = 2L) 2.305 2.628 3.345464  2.760 2.952 15720.89 1e+05
+                 fr2(y) 1.840 2.084 2.729462  2.195 2.337 15155.31 1e+05
+                 fr3(y) 1.640 1.882 3.479291  1.991 2.134 18395.13 1e+05
+                 fr4(y) 1.661 1.895 2.550393  2.005 2.151 15947.18 1e+05
+> y <- yy.rev
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fastrank(y, sort=2L), fr2(y), fr3(y), fr4(y), times=100000)
+Unit: microseconds
+                   expr   min    lq     mean median    uq      max neval
+            rank_new(y) 2.635 2.950 3.600881  3.067 3.231 17504.25 1e+05
+ fastrank(y, sort = 1L) 1.787 2.125 3.105061  2.255 2.450 15369.92 1e+05
+                 fr1(y) 1.348 1.583 2.678096  1.690 1.841 17789.64 1e+05
+ fastrank(y, sort = 2L) 1.785 2.127 2.994899  2.257 2.449 17118.03 1e+05
+                 fr2(y) 1.350 1.586 2.519376  1.692 1.843 16008.73 1e+05
+                 fr3(y) 1.352 1.593 2.572801  1.701 1.849 17828.92 1e+05
+                 fr4(y) 1.345 1.581 2.869925  1.688 1.841 18075.55 1e+05
+> y <- sample(5000, 10000, TRUE)
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fastrank(y, sort=2L), fr2(y), fr3(y), fr4(y), times=1000)
+Unit: microseconds
+                   expr     min       lq      mean   median        uq      max neval
+            rank_new(y) 959.300 993.1485 1082.1865 998.9890 1022.7425 11660.27  1000
+ fastrank(y, sort = 1L) 582.123 606.5245  696.5098 612.3880  631.6805 13783.45  1000
+                 fr1(y) 580.209 605.2280  694.2587 610.8525  630.4740 12496.42  1000
+ fastrank(y, sort = 2L) 681.899 711.4870  803.2318 719.8970  741.7115 12952.75  1000
+                 fr2(y) 679.892 709.1930  811.7536 717.4540  736.3275 13609.03  1000
+                 fr3(y) 613.490 640.3420  786.6816 646.5425  665.2740 53735.03  1000
+                 fr4(y) 574.019 602.9415  677.5235 607.7150  625.8810 12937.25  1000
+> y <- yyy.rev
+> microbenchmark(rank_new(y), fastrank(y, sort=1L), fr1(y), fastrank(y, sort=2L), fr2(y), fr3(y), fr4(y), times=1000)
+Unit: microseconds
+                   expr     min       lq     mean   median       uq      max neval
+            rank_new(y) 278.996 291.7135 359.4251 293.5670 301.8175 12540.79  1000
+ fastrank(y, sort = 1L)  99.509 108.1565 180.1124 110.1825 115.2045 12550.14  1000
+                 fr1(y)  98.008 107.7855 168.0080 109.3185 113.0320 11123.15  1000
+ fastrank(y, sort = 2L)  99.328 108.4015 209.0193 110.3240 116.4870 12356.55  1000
+                 fr2(y)  98.446 107.2680 201.4191 109.2440 115.2845 13708.38  1000
+                 fr3(y)  98.392 106.9865 228.5687 109.2505 113.5195 13147.32  1000
+                 fr4(y)  98.129 107.8175 178.9611 109.2420 112.4825 12206.77  1000
+```
+
+
 Remaining performance questions
 ===============================
 

@@ -5,7 +5,11 @@
 
 #define MY_SIZE_T size_t
 
+#define exch(_type, _a, _b) { _type t = _a; _a = _b; _b = t; }
+
 // quicksort
+static void fr_quicksort_int_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+static void fr_quicksort2_int_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 static void fr_quicksort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 // shellsort
 static void fr_shellsort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
@@ -18,49 +22,125 @@ int* vrandi(const int low, const int high, const int n);
 
 // Sedgwick's Quicksort with 3-pay partition, continue to modify for
 // my purposes.
-#define exch(_a,_b) { int t = _a; _a = _b; _b = t; }
-void quicksort(int aa[], int nn, int a[], int l, int r) {
-    int ll = 0; int rr = nn - 1;
-    int ii = ll-1, jj = rr, pp = ll-1, qq = rr, kk;
-    int vv = aa[rr];
-    if (rr <= ll) return; 
+static void quicksort_i_(const int *     a, 
+                         MY_SIZE_T       indx[],
+                         const MY_SIZE_T n,
+                         const MY_SIZE_T crit_size) {
+    MY_SIZE_T i, j, p, q, k;
 
-    int i = l-1, j = r, p = l-1, q = r, k;
-    int v = a[r];
-    if (r <= l) return; 
+    if (n <= 1) return; 
 
-    for (;;) {
-        while (aa[++ii] < vv) ;
-        while (vv < aa[--jj]) if (jj == ll) break; 
-        if (ii >= jj) break;
-        exch(aa[ii], aa[jj]);
-        if (aa[ii] == vv) { pp++; exch(aa[pp], aa[ii]); } 
-        if (vv == aa[jj]) { qq--; exch(aa[jj], aa[qq]); }
+    int pvt = a[indx[n - 1]];
+    for (i = 0; a[indx[i]] < pvt; ++i);
+    for (j = n - 2; pvt < a[indx[j]] && j > 0; --j);
+    p = 0;
+    q = n - 1;
+    if (i < j) {
+        exch(MY_SIZE_T, indx[i], indx[j]);
+        if (a[indx[i]] == pvt) { 
+            exch(int, indx[p], indx[i]);
+        } 
+        if (a[indx[j]] == pvt) {
+            q--;
+            exch(int, indx[q], indx[j]);
+        }
+        for (;;) {
+            while (a[indx[++i]] < pvt) ;  
+            while (pvt < a[indx[--j]]) {  
+                if (j == 0) break; 
+            }
+            if (i >= j) break;
+            exch(int, indx[i], indx[j]);
+            if (a[indx[i]] == pvt) { 
+                if (p) p++; 
+                exch(int, indx[p], indx[i]);
+            } 
+            if (a[indx[j]] == pvt) {
+                q--;
+                exch(int, indx[q], indx[j]);
+            }
+        }
     }
 
-    for (;;) {
-        while (a[++i] < v) ;
-        while (v < a[--j]) if (j == l) break; 
-        if (i >= j) break;
-        exch(a[i], a[j]);
-        if (a[i] == v) { p++; exch(a[p], a[i]); } 
-        if (v == a[j]) { q--; exch(a[j], a[q]); }
+    exch(int, indx[i], indx[n - 1]); 
+
+    j = i - 1;
+    i++;
+
+    for (k = 0; k < p; k++, j--) {
+        exch(int, indx[k], indx[j]); 
+    }
+    for (k = n - 2; k > q; k--, i++) {
+        exch(int, indx[i], indx[k]);
+    }
+    /*
+    printf("n=%2d  a[0..%2d]: ", n, n - 1);
+    for (int t = 0; t < n; ++t) printf("[%2d] %2d  ", t, a[t]);
+    printf("\n");
+    /**/
+
+    quicksort_i_(a, indx,     j + 1, crit_size);
+    quicksort_i_(a, indx + i, n - i, crit_size);
+}
+
+
+void quicksort(int a[], int n) {
+
+    unsigned int i, j, p, q, k;
+
+    if (n <= 1) return; 
+
+    int pvt = a[n - 1];
+    for (i = 0; a[i] < pvt; ++i);
+    for (j = n - 2; pvt < a[j] && j > 0; --j);
+    p = 0;
+    q = n - 1;
+    if (i < j) {
+        exch(int, a[i], a[j]);
+        if (a[i] == pvt) { 
+            exch(int, a[p], a[i]);
+        } 
+        if (a[j] == pvt) {
+            q--;
+            exch(int, a[q], a[j]);
+        }
+        for (;;) {
+            while (a[++i] < pvt) ;  
+            while (pvt < a[--j]) {  
+                if (j == 0) break; 
+            }
+            if (i >= j) break;
+            exch(int, a[i], a[j]);
+            if (a[i] == pvt) { 
+                if (p) p++; 
+                exch(int, a[p], a[i]);
+            } 
+            if (a[j] == pvt) {
+                q--;
+                exch(int, a[q], a[j]);
+            }
+        }
     }
 
-    exch(aa[ii], aa[rr]); 
-    jj = ii-1; 
-    ii = ii+1;
-    for (kk = ll; kk < pp; kk++, jj--) exch(aa[kk], aa[jj]); 
-    for (kk = rr-1; kk > qq; kk--, ii++) exch(aa[ii], aa[kk]);
+    exch(int, a[i], a[n - 1]); 
 
-    exch(a[i], a[r]); 
-    j = i-1; 
-    i = i+1;
-    for (k = l; k < p; k++, j--) exch(a[k], a[j]); 
-    for (k = r-1; k > q; k--, i++) exch(a[i], a[k]);
+    j = i - 1;
+    i++;
 
-    quicksort(     aa,      jj,  a, l, j);
-    quicksort(aa + ii, nn - ii,  a, i, r);
+    for (k = 0; k < p; k++, j--) {
+        exch(int, a[k], a[j]); 
+    }
+    for (k = n - 2; k > q; k--, i++) {
+        exch(int, a[i], a[k]);
+    }
+    /*
+    printf("n=%2d  a[0..%2d]: ", n, n - 1);
+    for (int t = 0; t < n; ++t) printf("[%2d] %2d  ", t, a[t]);
+    printf("\n");
+    /**/
+
+    quicksort(    a, j + 1);
+    quicksort(a + i, n - i);
 }
 
 void quicksort2(int a[], int l, int r) {
@@ -71,57 +151,47 @@ void quicksort2(int a[], int l, int r) {
         while (a[++i] < v) ;
         while (v < a[--j]) if (j == l) break; 
         if (i >= j) break;
-        exch(a[i], a[j]);
-        if (a[i] == v) { p++; exch(a[p], a[i]); } 
-        if (v == a[j]) { q--; exch(a[j], a[q]); }
+        exch(int, a[i], a[j]);
+        if (a[i] == v) { p++; exch(int, a[p], a[i]); } 
+        if (v == a[j]) { q--; exch(int, a[j], a[q]); }
     }
-    exch(a[i], a[r]); 
+    exch(int, a[i], a[r]); 
     j = i-1; 
     i = i+1;
-    for (k = l; k < p; k++, j--) exch(a[k], a[j]); 
-    for (k = r-1; k > q; k--, i++) exch(a[i], a[k]);
+    for (k = l; k < p; k++, j--) exch(int, a[k], a[j]); 
+    for (k = r-1; k > q; k--, i++) exch(int, a[i], a[k]);
     quicksort2(a, l, j);
     quicksort2(a, i, r);
 }
 
-static void fr_quicksort2_int_ (int * a,
-                                   MY_SIZE_T indx[],
-                                   const MY_SIZE_T n,
-                                   const MY_SIZE_T crit_size) {
-    if (n <= 1)
+
+static void fr_quicksort_int_i_ (const int * a,
+                                    MY_SIZE_T indx[],
+                                    const MY_SIZE_T n,
+                                    const MY_SIZE_T crit_size) {
+    int p;
+    MY_SIZE_T i, j, it;
+    if (n <= crit_size) {
+        // insertion sort shortcut
+        for (i = 1; i < n; ++i) {
+            it = indx[i];
+            for (j = i; j > 0 && a[indx[j - 1]] > a[it]; --j) {
+                indx[j] = indx[j - 1];
+            }
+        }
         return;
-    MY_SIZE_T i = 0, p = 0, k;
-    MY_SIZE_T j = n - 1;
-    MY_SIZE_T q = j;
-    int val = a[j];
-    int tmp;
-    for (;;) {
-        while (a[i] < val) i++;
-        while (val < a[j]) {
-            j--;
-            if (j == 1) break;  // or is this j == 0
-        }
+    }
+    p = a[indx[n / 2]];
+    for (i = 0, j = n - 1; ; i++, j--) {
+        while (a[indx[i]] < p) i++;
+        while (p < a[indx[j]]) j--;
         if (i >= j) break;
-        tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-        if (a[i] == val) { 
-            p++;
-            tmp = a[i]; a[i] = a[p]; a[p] = tmp;
-        }
-        if (val == a[j]) {
-            q--;
-            tmp = a[j]; a[j] = a[q]; a[q] = tmp;
-        }
+        it = indx[i]; indx[i] = indx[j]; indx[j] = it;
     }
-    tmp = a[i]; a[i] = a[n - 1]; a[n - 1] = tmp;
-    for (k = 0;  k < p; k++, j--) {
-        tmp = a[j]; a[j] = a[k]; a[k] = tmp;
-    }
-    for (k = n - 1;  k > q; k--, i++) {
-        tmp = a[k]; a[k] = a[i]; a[i] = tmp;
-    }
-    fr_quicksort2_int_ (a,     indx,     j,     crit_size);
-    fr_quicksort2_int_ (a + i, indx + i, n - i, crit_size);
+    fr_quicksort_int_i_(a, indx,     i    , crit_size);
+    fr_quicksort_int_i_(a, indx + i, n - i, crit_size);
 }
+
 
 
 static void fr_quicksort_double_i_ (const double * a,
@@ -154,6 +224,7 @@ static void fr_quicksort_double_i_ (const double * a,
 
 
 int main(int argc, char* argv[]) {
+    //srand(42);
     srand(time(NULL));
     //for (int i = 0; i < argc; ++i)
     //    printf("argv[%d]: %s   ", i, argv[i]);
@@ -161,26 +232,71 @@ int main(int argc, char* argv[]) {
     //printf("breaking ties with average rank\n");
     int max = atoi(argv[1]);
     int n = atoi(argv[2]);
-    printf("random vector:  max: %d   n: %d\n", max, n);
+    printf("random vector:  max: %d   n: %d  sum:", max, n);
     //float* x = vrandr(10, max, n);
-    int* x = vrandi(10, max, n);
+    int* v = vrandi(10, max, n);
+    double sum = 0; for (int i = 0; i < n; ++i) sum += v[i]; printf("%g\n", sum);
+    int* w = (int*) malloc(n * sizeof(int));
+    int* x = (int*) malloc(n * sizeof(int));
     int* y = (int*) malloc(n * sizeof(int));
-    for (int i = 0; i < n; ++i) y[i] = x[i];
+    int* z = (int*) malloc(n * sizeof(int));
+    for (int i = 0; i < n; ++i) z[i] = y[i] = x[i] = w[i] = v[i];
     //printf("sorted vector with indx:\n");
     MY_SIZE_T* indx = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
-    for (MY_SIZE_T i = 0; i < n; ++i) indx[i] = i;
+    MY_SIZE_T* indx2 = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
+    for (MY_SIZE_T i = 0; i < n; ++i) indx2[i] = indx[i] = i;
+    /*
     printf("before sort: x[] and indx[]\n");
     for (int i = 0; i < n; ++i) printf("%d   ", x[i]); putchar('\n');
+    */
     //for (int i = 0; i < n; ++i) printf("%d    ", indx[i]); putchar('\n');
-    //fr_quicksort2_int_(x, indx, n, 0);
+    //fr_quicksort_double_i_(x, indx, n, 0);
+    //printf("before fr_quicksort_int_i: w[] and indx[]\n");
+    //for (int i = 0; i < n; ++i) printf("%d   indx[%d] = %d   w[indx[%d]] = %d\n", i, i, indx[i], i, w[indx[i]]);
+    fr_quicksort_int_i_(w, indx, n, 1);
+    /*
+    fr_quicksort2_int_i_(z, indx2, n, 1);
+    printf("comparing fr_quicksort_int_i_ w[] with fr_quicksort2_int_i_ z[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (w[indx[i]] != z[indx2[i]])
+            printf("mismatch: indx[%d] = %d, w[indx[%d]] = %d   indx2[%s] = %d, z[indx[%d]] = %d\n",
+                    i, indx[i], i, w[indx[i]], i, indx2[i], i, z[indx[i]]);
+    */
+    //printf("after fr_quicksort_int_i: w[] and indx[]\n");
+    //for (int i = 0; i < n; ++i) printf("%d   indx[%d] = %d   w[indx[%d]] = %d\n", i, i, indx[i], i, w[indx[i]]);
     //quicksort(x, n);
-    quicksort(x, n, y, 0, n - 1);
-    //quicksort2(x, 0, n - 1);
-    printf("after sort: x[] and indx[]\n");
+    quicksort2(x, 0, n - 1);
+    printf("comparing fr_quicksort_int_i_ w[] with quicksort2 x[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (w[indx[i]] != x[i])
+            printf("mismatch: indx[%d] = %d, w[indx[%d]] = %d    x[%d] = %d\n",
+                    i, indx[i], i, w[indx[i]], i, x[i]);
+    quicksort(y, n);
+    printf("comparing quicksort2 x[] with quicksort y[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (x[i] != y[i])
+            printf("mismatch: x[%d] = %d    y[%d] = %d\n",
+                    i, x[i], i, y[i]);
+    quicksort_i_(z, indx2, n, 1);
+    printf("comparing quicksort_i_ z[] with quicksort2 x[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (z[indx2[i]] != x[i])
+            printf("mismatch: indx2[%d] = %d, z[indx2[%d]] = %d    x[%d] = %d\n",
+                    i, indx2[i], i, z[indx2[i]], i, x[i]);
+    return 0;
+    /*
+    printf("after quicksort: x[] and indx[]\n");
     for (int i = 0; i < n; ++i) printf("%d   ", x[i]); putchar('\n');
-    printf("after sort: y[] and indx[]\n");
+    printf("after quicksort: y[] and indx[]\n");
     for (int i = 0; i < n; ++i) printf("%d   ", y[i]); putchar('\n');
     //for (int i = 0; i < n; ++i) printf("%d    ", indx[i]); putchar('\n');
+    */
+    /*
+    for (int i = 0; i < n; ++i) y[i] = v[i];
+    quicksort2(y, 0, n - 1);
+    printf("after quicksort2: y[] and indx[]\n");
+    for (int i = 0; i < n; ++i) printf("%d   ", y[i]); putchar('\n');
+    */
     return 0;
     double* ranks = (double*) malloc(n * sizeof(double));
     // now to break ties, step through sorted values
@@ -223,7 +339,7 @@ int* vrandi(const int low, const int high, const int n) {
     if (n < 1) 
         return(0);
     int* result = (int *) malloc (n * sizeof(int));
-    srand(42);
+    //srand(42);
     for (int i = 0; i < n; ++i) 
         result[i] = (high - low + 1) * (rand() / (RAND_MAX + 1.0)) + low; 
     return(result);
