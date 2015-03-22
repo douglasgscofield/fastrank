@@ -106,3 +106,37 @@ fastrank_num_avg <- function(x) {
     .Call("fastrank_num_avg_", x, PACKAGE = "fastrank")
 }
 
+
+
+#' Rank logical, integer, numeric, complex vectors assigning ties the average rank
+#'
+#' An R function providing fast ranking for numeric vectors, assigning tied
+#' values the average rank.
+#'
+#' There is still a bit of overhead in calling this method.  If you really want
+#' the fastest interface, then call .\code{.Internal(rank(...))} function 
+#' directly.
+#'
+#' @note The vector must not include NAs or NaNs.  This is **not** checked.
+#'
+#' @param x A vector of numeric (double) values to rank
+#'
+#' @return A numeric vector of ranks of values in \code{x}, with length
+#' the same as \code{length(x)}.  Ties are broken by giving entries the
+#' average rank of the tied entries.
+#'
+#' @seealso \code{\link{rank}}
+#'
+#' @references
+#' \url{https://github.com/douglasgscofield/fastrank}
+#'
+#' @keywords internal
+#'
+#' @useDynLib fastrank fastrank_average_
+#'
+#' @export fastrank_average
+#'
+fastrank_average <- function(x) {
+    .Call("fastrank_average_", x, PACKAGE = "fastrank")
+}
+

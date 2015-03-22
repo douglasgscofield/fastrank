@@ -1076,6 +1076,11 @@ Unit: microseconds
 
 I do want to try the 3-partition Quicksort.
 
+
+
+Quicksort with 3-way partition and insertion sort
+=================================================
+
 This quicksort also doesn't use the insertion-sort cutoff, so that is something else to consider.  I added sort method `3L` with an insertion sort cutoff at 10 elements, and `4L` with 20 elements.
 
 ```R

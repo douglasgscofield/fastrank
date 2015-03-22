@@ -1,6 +1,8 @@
 fastrank: faster than `rank`
 =================================
 
+We are doing a re-write of the API.
+
 `fastrank` an R package providing fast ranking for integer, numeric, logical
 and complex vectors, as an alternative to calling `.Internal(rank(...))`, which
 packages cannot do.  Its API is a bit more restrictive, in the interests of
