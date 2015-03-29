@@ -1,3 +1,6 @@
+//TODO: genericify quicksort3way
+//TODO: benchmark it
+
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
@@ -169,9 +172,6 @@ fr_quicksort3way_integer_i_(const int *     a,
     //for (int t = 0; t < n; ++t) printf("[%2d] %2d  ", t, a[t]);
     //printf("\n");
     //
-    /**/
-
-    //FR_quicksort3way_body(int, LESSER, EQUAL, crit_size)
 
     fr_quicksort3way_integer_i_(a, indx,     j + 1, crit_size);
     fr_quicksort3way_integer_i_(a, indx + i, n - i, crit_size);
