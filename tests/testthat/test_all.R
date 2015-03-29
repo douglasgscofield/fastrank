@@ -6,6 +6,11 @@ context("Setting up some test data")
 ties.methods <- c("average", "first", "random", "max", "min")
 ties.classes <- c("numeric", "integer", "integer", "integer", "integer")
 names(ties.classes) <- ties.methods
+#ties.methods.test <- c("average", "first", "max", "min")
+#ties.classes.test <- c("numeric", "integer", "integer", "integer")
+ties.methods.test <- c("average", "max", "min")
+ties.classes.test <- c("numeric", "integer", "integer")
+names(ties.classes.test) <- ties.methods.test
 # use unname() when comparing
 
 # start as integer, convert to numeric as needed
@@ -60,7 +65,8 @@ sample.args <- list(list(     10,       5,  TRUE,  10),
 # long vectors
 
 #########################################
-for (ti in ties.methods) {
+# for (ti in ties.methods) {
+for (ti in ties.methods.test) {
 
     ctxt <- paste(sep="", "Worst-case \"", ti, "\", vs. rank()")
     context(ctxt)
@@ -122,7 +128,8 @@ for (ti in ties.methods) {
 
 
 #########################################
-for (ti in ties.methods) {
+#for (ti in ties.methods) {
+for (ti in ties.methods.test) {
 
     ctxt <- paste(sep="", "Random, \"", ti, "\", vs. rank(), ")
 
@@ -134,7 +141,7 @@ for (ti in ties.methods) {
         context(paste(sep="", ctxt, ctxt.s))
 
         test_that("Random vectors", {
-            if (a[[2]] > 10000) skip_on_cran()
+            #if (a[[2]] > 10000) skip_on_cran()
             for (i in 1:a[[4]]) {
                     v <- sample(a[[1]], a[[2]], a[[3]])
                     r1 <- rank(v, ties.method = ti)
