@@ -1155,6 +1155,54 @@ Unit: microseconds
 ```
 
 
+Quicksort 3-way partition macro function body
+=============================================
+
+After turning the Quicksort with 3-way partition into a macro function body for generalising to type, we see that it works, and that there is no performance degradation.  Sorts 3 and 4 are Quicksort 3-way with insertion sort at 10 and 20 and 6 and 7 are Quicksort 3-way macro function body with the same limits.
+
+```R
+> microbenchmark(rank(x), rank_new(x), fastrank(x, sort=1L), fastrank(x, sort=4L), fastrank(x, sort=7L), times=1000)
+Unit: microseconds
+                   expr      min        lq      mean    median        uq       max neval
+                rank(x) 1316.825 1390.4155 1541.0721 1435.3870 1501.2020 11007.502  1000
+            rank_new(x) 1037.054 1075.5500 1130.1380 1099.5365 1120.6650 10633.435  1000
+ fastrank(x, sort = 1L)  585.654  613.1065  658.3137  631.4630  653.3840  9802.016  1000
+ fastrank(x, sort = 4L)  585.171  614.5665  685.3554  632.7085  652.1705  8463.244  1000
+ fastrank(x, sort = 7L)  584.391  612.5110  670.1524  631.5280  653.3140  8592.768  1000
+> microbenchmark(rank(x), rank_new(x), fastrank(x, sort=1L), fastrank(x, sort=4L), fastrank(x, sort=7L), times=1000)
+Unit: microseconds
+                   expr      min        lq      mean    median        uq      max neval
+                rank(x) 1315.465 1367.0665 1482.3605 1400.0205 1463.2740 9194.212  1000
+            rank_new(x) 1038.012 1061.4835 1132.1536 1081.2910 1110.4495 8789.213  1000
+ fastrank(x, sort = 1L)  584.454  602.7095  662.2543  618.6155  640.1935 7092.208  1000
+ fastrank(x, sort = 4L)  585.700  602.4155  676.3552  617.7670  638.4140 7579.751  1000
+ fastrank(x, sort = 7L)  583.152  600.3940  672.2261  617.4905  637.6860 7858.678  1000
+> microbenchmark(rank(x), rank_new(x), fastrank(x, sort=1L), fastrank(x, sort=3L), fastrank(x, sort=4L), fastrank(x, sort=6L), fastrank(x, sort=7L), times=1000)
+Unit: microseconds
+                   expr      min       lq      mean    median        uq      max neval
+                rank(x) 1313.147 1400.868 1536.6541 1437.0945 1489.7595 7123.423  1000
+            rank_new(x) 1037.914 1079.173 1154.6110 1104.9480 1122.1035 6307.824  1000
+ fastrank(x, sort = 1L)  583.807  614.075  673.2295  630.5820  648.3760 6453.953  1000
+ fastrank(x, sort = 3L)  584.063  613.287  680.4116  629.4395  645.6785 6302.783  1000
+ fastrank(x, sort = 4L)  584.323  613.000  664.2415  629.0980  644.7145 5245.683  1000
+ fastrank(x, sort = 6L)  581.962  613.637  680.1738  631.8550  649.0435 5982.946  1000
+ fastrank(x, sort = 7L)  584.176  613.892  672.8500  630.3080  646.1050 6033.391  1000
+> x = yy.orig
+> length(x)
+[1] 100
+> microbenchmark(rank(x), rank_new(x), fastrank(x, sort=1L), fastrank(x, sort=3L), fastrank(x, sort=4L), fastrank(x, sort=6L), fastrank(x, sort=7L), times=10000)
+Unit: microseconds
+                   expr    min      lq      mean  median      uq       max neval
+                rank(x) 28.082 31.3495 41.923497 32.3825 33.8660 43731.533 10000
+            rank_new(x)  2.943  3.4380  3.868361  3.6450  3.8820   227.281 10000
+ fastrank(x, sort = 1L)  2.184  2.5580  5.395367  2.8090  3.2455  7883.603 10000
+ fastrank(x, sort = 3L)  2.183  2.5660  3.171314  2.8130  3.2630   105.594 10000
+ fastrank(x, sort = 4L)  2.179  2.5530  3.124612  2.8045  3.2325    86.486 10000
+ fastrank(x, sort = 6L)  2.188  2.5600  3.173751  2.8140  3.2465   282.828 10000
+ fastrank(x, sort = 7L)  2.189  2.5650  3.752411  2.8150  3.2510  6331.111 10000
+```
+
+
 Remaining performance questions
 ===============================
 

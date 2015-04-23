@@ -22,56 +22,67 @@ int* vrandi(const int low, const int high, const int n);
 
 // Sedgwick's Quicksort with 3-pay partition, continue to modify for
 // my purposes.
+#undef __EQUAL
+#undef __LESSER
+#define __EQUAL(__A, __B) (__A == __B)
+#define __LESSER(__A, __B) (__A < __B)
+#define SWAP(__T, __A, __B) { __T t = __A; __A = __B; __B = t; }
 static void quicksort_i_(const int *     a, 
                          MY_SIZE_T       indx[],
                          const MY_SIZE_T n,
                          const MY_SIZE_T crit_size) {
     MY_SIZE_T i, j, p, q, k;
 
-    if (n <= 1) return; 
+    if (n <= crit_size) {
+        for (i = 1; i < n; ++i) {
+            MY_SIZE_T it = indx[i];
+            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) {
+                indx[j] = indx[j - 1];
+            }
+            indx[j] = it;
+        }
+        return;
+    }
 
     int pvt = a[indx[n - 1]];
-    for (i = 0; a[indx[i]] < pvt; ++i);
-    for (j = n - 2; pvt < a[indx[j]] && j > 0; --j);
+    for (i = 0; __LESSER(a[indx[i]], pvt); ++i);
+    for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j);
     p = 0;
     q = n - 1;
     if (i < j) {
-        exch(MY_SIZE_T, indx[i], indx[j]);
-        if (a[indx[i]] == pvt) { 
-            exch(int, indx[p], indx[i]);
+        SWAP(MY_SIZE_T, indx[i], indx[j]);
+        if (__EQUAL(a[indx[i]], pvt)) { 
+            SWAP(MY_SIZE_T, indx[p], indx[i]);
         } 
-        if (a[indx[j]] == pvt) {
+        if (__EQUAL(a[indx[j]], pvt)) {
             q--;
-            exch(int, indx[q], indx[j]);
+            SWAP(MY_SIZE_T, indx[q], indx[j]);
         }
         for (;;) {
-            while (a[indx[++i]] < pvt) ;  
-            while (pvt < a[indx[--j]]) {  
+            while (__LESSER(a[indx[++i]], pvt)) ;  
+            while (__LESSER(pvt, a[indx[--j]])) {  
                 if (j == 0) break; 
             }
             if (i >= j) break;
-            exch(int, indx[i], indx[j]);
-            if (a[indx[i]] == pvt) { 
+            SWAP(MY_SIZE_T, indx[i], indx[j]);
+            if (__EQUAL(a[indx[i]], pvt)) { 
                 if (p) p++; 
-                exch(int, indx[p], indx[i]);
+                SWAP(MY_SIZE_T, indx[p], indx[i]);
             } 
-            if (a[indx[j]] == pvt) {
+            if (__EQUAL(a[indx[j]], pvt)) {
                 q--;
-                exch(int, indx[q], indx[j]);
+                SWAP(MY_SIZE_T, indx[q], indx[j]);
             }
         }
     }
-
-    exch(int, indx[i], indx[n - 1]); 
-
+    SWAP(MY_SIZE_T, indx[i], indx[n - 1]); 
     j = i - 1;
     i++;
-
     for (k = 0; k < p; k++, j--) {
-        exch(int, indx[k], indx[j]); 
+        SWAP(MY_SIZE_T, indx[k], indx[j]); 
     }
     for (k = n - 2; k > q; k--, i++) {
-        exch(int, indx[i], indx[k]);
+        SWAP(MY_SIZE_T, indx[i], indx[k]);
     }
     /*
     printf("n=%2d  a[0..%2d]: ", n, n - 1);
