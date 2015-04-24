@@ -8,9 +8,8 @@
 #define exch(_type, _a, _b) { _type t = _a; _a = _b; _b = t; }
 
 // quicksort
-static void fr_quicksort_int_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
-static void fr_quicksort2_int_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
-static void fr_quicksort_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+static void fr_quicksortclassic_int_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+static void fr_quicksortclassic_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 // shellsort
 static void fr_shellsort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
 // vector of random doubles
@@ -20,17 +19,18 @@ int* vrandi(const int low, const int high, const int n);
 // todo: modify quicksort to use the 3-way partition from Sedgwick's
 // Quicksort is optimal presentation
 
-// Sedgwick's Quicksort with 3-pay partition, continue to modify for
+// Sedgwick's Quicksort with 3-way partition, continue to modify for
 // my purposes.
 #undef __EQUAL
 #undef __LESSER
 #define __EQUAL(__A, __B) (__A == __B)
 #define __LESSER(__A, __B) (__A < __B)
 #define SWAP(__T, __A, __B) { __T t = __A; __A = __B; __B = t; }
-static void quicksort_i_(const int *     a, 
-                         MY_SIZE_T       indx[],
-                         const MY_SIZE_T n,
-                         const MY_SIZE_T crit_size) {
+
+static void quicksort3way_i_(const int *     a, 
+                             MY_SIZE_T       indx[],
+                             const MY_SIZE_T n,
+                             const MY_SIZE_T crit_size) {
     MY_SIZE_T i, j, p, q, k;
 
     if (n <= crit_size) {
@@ -90,12 +90,12 @@ static void quicksort_i_(const int *     a,
     printf("\n");
     /**/
 
-    quicksort_i_(a, indx,     j + 1, crit_size);
-    quicksort_i_(a, indx + i, n - i, crit_size);
+    quicksort3way_i_(a, indx,     j + 1, crit_size);
+    quicksort3way_i_(a, indx + i, n - i, crit_size);
 }
 
 
-void quicksort(int a[], int n) {
+void quicksort3way(int a[], int n) {
 
     unsigned int i, j, p, q, k;
 
@@ -150,11 +150,11 @@ void quicksort(int a[], int n) {
     printf("\n");
     /**/
 
-    quicksort(    a, j + 1);
-    quicksort(a + i, n - i);
+    quicksort3way(    a, j + 1);
+    quicksort3way(a + i, n - i);
 }
 
-void quicksort2(int a[], int l, int r) {
+void quicksort3wayorig(int a[], int l, int r) {
     int i = l-1, j = r, p = l-1, q = r, k;
     int v = a[r];
     if (r <= l) return; 
@@ -171,15 +171,15 @@ void quicksort2(int a[], int l, int r) {
     i = i+1;
     for (k = l; k < p; k++, j--) exch(int, a[k], a[j]); 
     for (k = r-1; k > q; k--, i++) exch(int, a[i], a[k]);
-    quicksort2(a, l, j);
-    quicksort2(a, i, r);
+    quicksort3wayorig(a, l, j);
+    quicksort3wayorig(a, i, r);
 }
 
 
-static void fr_quicksort_int_i_ (const int * a,
-                                    MY_SIZE_T indx[],
-                                    const MY_SIZE_T n,
-                                    const MY_SIZE_T crit_size) {
+static void fr_quicksortclassic_int_i_ (const int * a,
+                                        MY_SIZE_T indx[],
+                                        const MY_SIZE_T n,
+                                        const MY_SIZE_T crit_size) {
     int p;
     MY_SIZE_T i, j, it;
     if (n <= crit_size) {
@@ -199,13 +199,13 @@ static void fr_quicksort_int_i_ (const int * a,
         if (i >= j) break;
         it = indx[i]; indx[i] = indx[j]; indx[j] = it;
     }
-    fr_quicksort_int_i_(a, indx,     i    , crit_size);
-    fr_quicksort_int_i_(a, indx + i, n - i, crit_size);
+    fr_quicksortclassic_int_i_(a, indx,     i    , crit_size);
+    fr_quicksortclassic_int_i_(a, indx + i, n - i, crit_size);
 }
 
 
 
-static void fr_quicksort_double_i_ (const double * a,
+static void fr_quicksortclassic_double_i_ (const double * a,
                                     MY_SIZE_T indx[],
                                     const MY_SIZE_T n,
                                     const MY_SIZE_T crit_size) {
@@ -228,8 +228,8 @@ static void fr_quicksort_double_i_ (const double * a,
         if (i >= j) break;
         it = indx[i]; indx[i] = indx[j]; indx[j] = it;
     }
-    fr_quicksort_double_i_(a, indx,     i    , crit_size);
-    fr_quicksort_double_i_(a, indx + i, n - i, crit_size);
+    fr_quicksortclassic_double_i_(a, indx,     i    , crit_size);
+    fr_quicksortclassic_double_i_(a, indx + i, n - i, crit_size);
 }
 
 
@@ -261,35 +261,27 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < n; ++i) printf("%d   ", x[i]); putchar('\n');
     */
     //for (int i = 0; i < n; ++i) printf("%d    ", indx[i]); putchar('\n');
-    //fr_quicksort_double_i_(x, indx, n, 0);
-    //printf("before fr_quicksort_int_i: w[] and indx[]\n");
+    //fr_quicksortclassic_double_i_(x, indx, n, 0);
+    //printf("before fr_quicksortclassic_int_i: w[] and indx[]\n");
     //for (int i = 0; i < n; ++i) printf("%d   indx[%d] = %d   w[indx[%d]] = %d\n", i, i, indx[i], i, w[indx[i]]);
-    fr_quicksort_int_i_(w, indx, n, 1);
-    /*
-    fr_quicksort2_int_i_(z, indx2, n, 1);
-    printf("comparing fr_quicksort_int_i_ w[] with fr_quicksort2_int_i_ z[]...\n");
-    for (int i = 0; i < n; ++i)
-        if (w[indx[i]] != z[indx2[i]])
-            printf("mismatch: indx[%d] = %d, w[indx[%d]] = %d   indx2[%s] = %d, z[indx[%d]] = %d\n",
-                    i, indx[i], i, w[indx[i]], i, indx2[i], i, z[indx[i]]);
-    */
-    //printf("after fr_quicksort_int_i: w[] and indx[]\n");
+    fr_quicksortclassic_int_i_(w, indx, n, 1);
+    //printf("after fr_quicksortclassic_int_i: w[] and indx[]\n");
     //for (int i = 0; i < n; ++i) printf("%d   indx[%d] = %d   w[indx[%d]] = %d\n", i, i, indx[i], i, w[indx[i]]);
     //quicksort(x, n);
-    quicksort2(x, 0, n - 1);
-    printf("comparing fr_quicksort_int_i_ w[] with quicksort2 x[]...\n");
+    quicksort3wayorig(x, 0, n - 1);
+    printf("comparing fr_quicksortclassic_int_i_ w[] with quicksort3wayorig x[]...\n");
     for (int i = 0; i < n; ++i)
         if (w[indx[i]] != x[i])
             printf("mismatch: indx[%d] = %d, w[indx[%d]] = %d    x[%d] = %d\n",
                     i, indx[i], i, w[indx[i]], i, x[i]);
-    quicksort(y, n);
-    printf("comparing quicksort2 x[] with quicksort y[]...\n");
+    quicksort3way(y, n);
+    printf("comparing quicksort3wayorig x[] with quicksort3way y[]...\n");
     for (int i = 0; i < n; ++i)
         if (x[i] != y[i])
             printf("mismatch: x[%d] = %d    y[%d] = %d\n",
                     i, x[i], i, y[i]);
-    quicksort_i_(z, indx2, n, 1);
-    printf("comparing quicksort_i_ z[] with quicksort2 x[]...\n");
+    quicksort3way_i_(z, indx2, n, 1);
+    printf("comparing quicksort3way_i_ z[] with quicksort3wayorig x[]...\n");
     for (int i = 0; i < n; ++i)
         if (z[indx2[i]] != x[i])
             printf("mismatch: indx2[%d] = %d, z[indx2[%d]] = %d    x[%d] = %d\n",
@@ -304,8 +296,8 @@ int main(int argc, char* argv[]) {
     */
     /*
     for (int i = 0; i < n; ++i) y[i] = v[i];
-    quicksort2(y, 0, n - 1);
-    printf("after quicksort2: y[] and indx[]\n");
+    quicksort3wayorig(y, 0, n - 1);
+    printf("after quicksort3wayorig: y[] and indx[]\n");
     for (int i = 0; i < n; ++i) printf("%d   ", y[i]); putchar('\n');
     */
     return 0;
