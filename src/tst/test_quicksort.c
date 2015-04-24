@@ -12,6 +12,9 @@ static void fr_quicksortclassic_int_i_ (const int * a, MY_SIZE_T indx[], const M
 static void fr_quicksortclassic_double_i_ (const double * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 // shellsort
 static void fr_shellsort_double_i_ (double * const a, MY_SIZE_T indx[], const MY_SIZE_T n);
+static void quicksort3way_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+static void quicksort3way(int a[], int n);
+static void quicksort3wayorig(int a[], int l, int r);
 // vector of random doubles
 float* vrandr(const int low, const int high, const int n);
 int* vrandi(const int low, const int high, const int n);
@@ -26,6 +29,66 @@ int* vrandi(const int low, const int high, const int n);
 #define __EQUAL(__A, __B) (__A == __B)
 #define __LESSER(__A, __B) (__A < __B)
 #define SWAP(__T, __A, __B) { __T t = __A; __A = __B; __B = t; }
+
+#define FR_quicksort3way_body(__TYPE, __LESSER, __EQUAL, __CRIT_SIZE) \
+static void quicksort3way_i_(const int *     a, 
+                             MY_SIZE_T       indx[],
+                             const MY_SIZE_T n,
+                             const MY_SIZE_T crit_size) {
+    MY_SIZE_T i, j, p, q, k;
+
+    if (n <= crit_size) {
+        for (i = 1; i < n; ++i) {
+            MY_SIZE_T it = indx[i];
+            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) {
+                indx[j] = indx[j - 1];
+            }
+            indx[j] = it;
+        }
+        return;
+    }
+
+    int pvt = a[indx[n - 1]];
+    for (i = 0; __LESSER(a[indx[i]], pvt); ++i);
+    for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j);
+    p = 0;
+    q = n - 1;
+    if (i < j) {
+        SWAP(MY_SIZE_T, indx[i], indx[j]);
+        if (__EQUAL(a[indx[i]], pvt)) { 
+            SWAP(MY_SIZE_T, indx[p], indx[i]);
+        } 
+        if (__EQUAL(a[indx[j]], pvt)) {
+            q--;
+            SWAP(MY_SIZE_T, indx[q], indx[j]);
+        }
+        for (;;) {
+            while (__LESSER(a[indx[++i]], pvt)) ;  
+            while (__LESSER(pvt, a[indx[--j]])) {  
+                if (j == 0) break; 
+            }
+            if (i >= j) break;
+            SWAP(MY_SIZE_T, indx[i], indx[j]);
+            if (__EQUAL(a[indx[i]], pvt)) { 
+                if (p) p++; 
+                SWAP(MY_SIZE_T, indx[p], indx[i]);
+            } 
+            if (__EQUAL(a[indx[j]], pvt)) {
+                q--;
+                SWAP(MY_SIZE_T, indx[q], indx[j]);
+            }
+        }
+    }
+    SWAP(MY_SIZE_T, indx[i], indx[n - 1]); 
+    j = i - 1;
+    i++;
+    for (k = 0; k < p; k++, j--) {
+        SWAP(MY_SIZE_T, indx[k], indx[j]); 
+    }
+    for (k = n - 2; k > q; k--, i++) {
+        SWAP(MY_SIZE_T, indx[i], indx[k]);
+    }
+
 
 static void quicksort3way_i_(const int *     a, 
                              MY_SIZE_T       indx[],
@@ -95,7 +158,7 @@ static void quicksort3way_i_(const int *     a,
 }
 
 
-void quicksort3way(int a[], int n) {
+static void quicksort3way(int a[], int n) {
 
     unsigned int i, j, p, q, k;
 
@@ -154,7 +217,7 @@ void quicksort3way(int a[], int n) {
     quicksort3way(a + i, n - i);
 }
 
-void quicksort3wayorig(int a[], int l, int r) {
+static void quicksort3wayorig(int a[], int l, int r) {
     int i = l-1, j = r, p = l-1, q = r, k;
     int v = a[r];
     if (r <= l) return; 
