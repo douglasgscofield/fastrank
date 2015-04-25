@@ -15,6 +15,8 @@ static void fr_shellsort_double_i_ (double * const a, MY_SIZE_T indx[], const MY
 static void quicksort3way_i_ (const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 static void quicksort3way(int a[], int n);
 static void quicksort3wayorig(int a[], int l, int r);
+static void fr_quicksort3way_integer_i_(const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+
 // vector of random doubles
 float* vrandr(const int low, const int high, const int n);
 int* vrandi(const int low, const int high, const int n);
@@ -26,21 +28,86 @@ int* vrandi(const int low, const int high, const int n);
 // my purposes.
 #undef __EQUAL
 #undef __LESSER
-#define __EQUAL(__A, __B) (__A == __B)
-#define __LESSER(__A, __B) (__A < __B)
+#undef EQUAL
+#undef LESSER
+#define EQUAL(__A, __B) (__A == __B)
+#define LESSER(__A, __B) (__A < __B)
 #define SWAP(__T, __A, __B) { __T t = __A; __A = __B; __B = t; }
 
 #define FR_quicksort3way_body(__TYPE, __LESSER, __EQUAL, __CRIT_SIZE) \
-static void quicksort3way_i_(const int *     a, 
-                             MY_SIZE_T       indx[],
-                             const MY_SIZE_T n,
-                             const MY_SIZE_T crit_size) {
+    MY_SIZE_T i, j, p, q, k; \
+    if (n <= crit_size) { \
+        for (i = 1; i < n; ++i) { \
+            MY_SIZE_T it = indx[i]; \
+            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) { \
+                indx[j] = indx[j - 1]; \
+            } \
+            indx[j] = it; \
+        } \
+        return; \
+    } \
+    int pvt = a[indx[n - 1]]; \
+    for (i = 0; __LESSER(a[indx[i]], pvt); ++i); \
+    for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j); \
+    p = 0; \
+    q = n - 1; \
+    if (i < j) { \
+        SWAP(MY_SIZE_T, indx[i], indx[j]); \
+        if (__EQUAL(a[indx[i]], pvt)) {  \
+            SWAP(MY_SIZE_T, indx[p], indx[i]); \
+        }  \
+        if (__EQUAL(a[indx[j]], pvt)) { \
+            q--; \
+            SWAP(MY_SIZE_T, indx[q], indx[j]); \
+        } \
+        for (;;) { \
+            while (__LESSER(a[indx[++i]], pvt)) ;   \
+            while (__LESSER(pvt, a[indx[--j]])) {   \
+                if (j == 0) break;  \
+            } \
+            if (i >= j) break; \
+            SWAP(MY_SIZE_T, indx[i], indx[j]); \
+            if (__EQUAL(a[indx[i]], pvt)) {  \
+                if (p) p++;  \
+                SWAP(MY_SIZE_T, indx[p], indx[i]); \
+            }  \
+            if (__EQUAL(a[indx[j]], pvt)) { \
+                q--; \
+                SWAP(MY_SIZE_T, indx[q], indx[j]); \
+            } \
+        } \
+    } \
+    SWAP(MY_SIZE_T, indx[i], indx[n - 1]);  \
+    j = i - 1; \
+    i++; \
+    for (k = 0; k < p; k++, j--) { \
+        SWAP(MY_SIZE_T, indx[k], indx[j]);  \
+    } \
+    for (k = n - 2; k > q; k--, i++) { \
+        SWAP(MY_SIZE_T, indx[i], indx[k]); \
+    }
+
+static void
+fr_quicksort3way_integer_i_(const int *     a, 
+                            MY_SIZE_T       indx[],
+                            const MY_SIZE_T n,
+                            const MY_SIZE_T crit_size) {
+    FR_quicksort3way_body(int, LESSER, EQUAL, crit_size);
+    fr_quicksort3way_integer_i_(a, indx,     j + 1, crit_size);
+    fr_quicksort3way_integer_i_(a, indx + i, n - i, crit_size);
+}
+
+static void
+quicksort3way_i_(const int *     a, 
+                 MY_SIZE_T       indx[],
+                 const MY_SIZE_T n,
+                 const MY_SIZE_T crit_size) {
     MY_SIZE_T i, j, p, q, k;
 
     if (n <= crit_size) {
         for (i = 1; i < n; ++i) {
             MY_SIZE_T it = indx[i];
-            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) {
+            for (j = i; j > 0 && LESSER(a[it], a[indx[j - 1]]); --j) {
                 indx[j] = indx[j - 1];
             }
             indx[j] = it;
@@ -49,90 +116,31 @@ static void quicksort3way_i_(const int *     a,
     }
 
     int pvt = a[indx[n - 1]];
-    for (i = 0; __LESSER(a[indx[i]], pvt); ++i);
-    for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j);
+    for (i = 0; LESSER(a[indx[i]], pvt); ++i);
+    for (j = n - 2; LESSER(pvt, a[indx[j]]) && j > 0; --j);
     p = 0;
     q = n - 1;
     if (i < j) {
         SWAP(MY_SIZE_T, indx[i], indx[j]);
-        if (__EQUAL(a[indx[i]], pvt)) { 
+        if (EQUAL(a[indx[i]], pvt)) { 
             SWAP(MY_SIZE_T, indx[p], indx[i]);
         } 
-        if (__EQUAL(a[indx[j]], pvt)) {
+        if (EQUAL(a[indx[j]], pvt)) {
             q--;
             SWAP(MY_SIZE_T, indx[q], indx[j]);
         }
         for (;;) {
-            while (__LESSER(a[indx[++i]], pvt)) ;  
-            while (__LESSER(pvt, a[indx[--j]])) {  
+            while (LESSER(a[indx[++i]], pvt)) ;  
+            while (LESSER(pvt, a[indx[--j]])) {  
                 if (j == 0) break; 
             }
             if (i >= j) break;
             SWAP(MY_SIZE_T, indx[i], indx[j]);
-            if (__EQUAL(a[indx[i]], pvt)) { 
+            if (EQUAL(a[indx[i]], pvt)) { 
                 if (p) p++; 
                 SWAP(MY_SIZE_T, indx[p], indx[i]);
             } 
-            if (__EQUAL(a[indx[j]], pvt)) {
-                q--;
-                SWAP(MY_SIZE_T, indx[q], indx[j]);
-            }
-        }
-    }
-    SWAP(MY_SIZE_T, indx[i], indx[n - 1]); 
-    j = i - 1;
-    i++;
-    for (k = 0; k < p; k++, j--) {
-        SWAP(MY_SIZE_T, indx[k], indx[j]); 
-    }
-    for (k = n - 2; k > q; k--, i++) {
-        SWAP(MY_SIZE_T, indx[i], indx[k]);
-    }
-
-
-static void quicksort3way_i_(const int *     a, 
-                             MY_SIZE_T       indx[],
-                             const MY_SIZE_T n,
-                             const MY_SIZE_T crit_size) {
-    MY_SIZE_T i, j, p, q, k;
-
-    if (n <= crit_size) {
-        for (i = 1; i < n; ++i) {
-            MY_SIZE_T it = indx[i];
-            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) {
-                indx[j] = indx[j - 1];
-            }
-            indx[j] = it;
-        }
-        return;
-    }
-
-    int pvt = a[indx[n - 1]];
-    for (i = 0; __LESSER(a[indx[i]], pvt); ++i);
-    for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j);
-    p = 0;
-    q = n - 1;
-    if (i < j) {
-        SWAP(MY_SIZE_T, indx[i], indx[j]);
-        if (__EQUAL(a[indx[i]], pvt)) { 
-            SWAP(MY_SIZE_T, indx[p], indx[i]);
-        } 
-        if (__EQUAL(a[indx[j]], pvt)) {
-            q--;
-            SWAP(MY_SIZE_T, indx[q], indx[j]);
-        }
-        for (;;) {
-            while (__LESSER(a[indx[++i]], pvt)) ;  
-            while (__LESSER(pvt, a[indx[--j]])) {  
-                if (j == 0) break; 
-            }
-            if (i >= j) break;
-            SWAP(MY_SIZE_T, indx[i], indx[j]);
-            if (__EQUAL(a[indx[i]], pvt)) { 
-                if (p) p++; 
-                SWAP(MY_SIZE_T, indx[p], indx[i]);
-            } 
-            if (__EQUAL(a[indx[j]], pvt)) {
+            if (EQUAL(a[indx[j]], pvt)) {
                 q--;
                 SWAP(MY_SIZE_T, indx[q], indx[j]);
             }
@@ -158,7 +166,8 @@ static void quicksort3way_i_(const int *     a,
 }
 
 
-static void quicksort3way(int a[], int n) {
+static void
+quicksort3way(int a[], int n) {
 
     unsigned int i, j, p, q, k;
 
@@ -217,7 +226,8 @@ static void quicksort3way(int a[], int n) {
     quicksort3way(a + i, n - i);
 }
 
-static void quicksort3wayorig(int a[], int l, int r) {
+static void
+quicksort3wayorig(int a[], int l, int r) {
     int i = l-1, j = r, p = l-1, q = r, k;
     int v = a[r];
     if (r <= l) return; 
@@ -239,10 +249,11 @@ static void quicksort3wayorig(int a[], int l, int r) {
 }
 
 
-static void fr_quicksortclassic_int_i_ (const int * a,
-                                        MY_SIZE_T indx[],
-                                        const MY_SIZE_T n,
-                                        const MY_SIZE_T crit_size) {
+static void
+fr_quicksortclassic_int_i_ (const int * a,
+                            MY_SIZE_T indx[],
+                            const MY_SIZE_T n,
+                            const MY_SIZE_T crit_size) {
     int p;
     MY_SIZE_T i, j, it;
     if (n <= crit_size) {
@@ -268,10 +279,11 @@ static void fr_quicksortclassic_int_i_ (const int * a,
 
 
 
-static void fr_quicksortclassic_double_i_ (const double * a,
-                                    MY_SIZE_T indx[],
-                                    const MY_SIZE_T n,
-                                    const MY_SIZE_T crit_size) {
+static void
+fr_quicksortclassic_double_i_ (const double * a,
+                               MY_SIZE_T indx[],
+                               const MY_SIZE_T n,
+                               const MY_SIZE_T crit_size) {
     double p;
     MY_SIZE_T i, j, it;
     if (n < crit_size) {
@@ -314,11 +326,20 @@ int main(int argc, char* argv[]) {
     int* x = (int*) malloc(n * sizeof(int));
     int* y = (int*) malloc(n * sizeof(int));
     int* z = (int*) malloc(n * sizeof(int));
-    for (int i = 0; i < n; ++i) z[i] = y[i] = x[i] = w[i] = v[i];
+    int* za = (int*) malloc(n * sizeof(int));
+    int* zb = (int*) malloc(n * sizeof(int));
+    int* zc = (int*) malloc(n * sizeof(int));
+    for (int i = 0; i < n; ++i) 
+        zc[i] = zb[i] = za[i] = z[i] = y[i] = x[i] = w[i] = v[i];
     //printf("sorted vector with indx:\n");
     MY_SIZE_T* indx = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
     MY_SIZE_T* indx2 = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
-    for (MY_SIZE_T i = 0; i < n; ++i) indx2[i] = indx[i] = i;
+    MY_SIZE_T* indxza = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
+    MY_SIZE_T* indxzb = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
+    MY_SIZE_T* indxzc = (MY_SIZE_T *) malloc(n * sizeof(MY_SIZE_T));
+    for (MY_SIZE_T i = 0; i < n; ++i)
+        indxzc[i] = indxzb[i] = indxza[i] = indx2[i] = indx[i] = i;
+
     /*
     printf("before sort: x[] and indx[]\n");
     for (int i = 0; i < n; ++i) printf("%d   ", x[i]); putchar('\n');
@@ -331,24 +352,51 @@ int main(int argc, char* argv[]) {
     //printf("after fr_quicksortclassic_int_i: w[] and indx[]\n");
     //for (int i = 0; i < n; ++i) printf("%d   indx[%d] = %d   w[indx[%d]] = %d\n", i, i, indx[i], i, w[indx[i]]);
     //quicksort(x, n);
+
     quicksort3wayorig(x, 0, n - 1);
     printf("comparing fr_quicksortclassic_int_i_ w[] with quicksort3wayorig x[]...\n");
     for (int i = 0; i < n; ++i)
         if (w[indx[i]] != x[i])
             printf("mismatch: indx[%d] = %d, w[indx[%d]] = %d    x[%d] = %d\n",
                     i, indx[i], i, w[indx[i]], i, x[i]);
+
     quicksort3way(y, n);
     printf("comparing quicksort3wayorig x[] with quicksort3way y[]...\n");
     for (int i = 0; i < n; ++i)
         if (x[i] != y[i])
             printf("mismatch: x[%d] = %d    y[%d] = %d\n",
                     i, x[i], i, y[i]);
+
     quicksort3way_i_(z, indx2, n, 1);
     printf("comparing quicksort3way_i_ z[] with quicksort3wayorig x[]...\n");
     for (int i = 0; i < n; ++i)
         if (z[indx2[i]] != x[i])
             printf("mismatch: indx2[%d] = %d, z[indx2[%d]] = %d    x[%d] = %d\n",
                     i, indx2[i], i, z[indx2[i]], i, x[i]);
+
+    fr_quicksort3way_integer_i_(za, indxza, n, 1);
+    printf("comparing fr_quicksort3way_integer_i_(..., 1) za[] with quicksort3wayorig x[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (za[indxza[i]] != x[i])
+            printf("mismatch: indxza[%d] = %d, za[indxza[%d]] = %d    x[%d] = %d\n",
+                    i, indxza[i], i, za[indxza[i]], i, x[i]);
+
+    fr_quicksort3way_integer_i_(zb, indxzb, n, 10);
+    printf("comparing fr_quicksort3way_integer_i_(..., 10) zb[] with quicksort3wayorig x[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (zb[indxzb[i]] != x[i])
+            printf("mismatch: indxzb[%d] = %d, zb[indxzb[%d]] = %d    x[%d] = %d\n",
+                    i, indxzb[i], i, zb[indxzb[i]], i, x[i]);
+
+    printf("comparing fr_quicksort3way_integer_i_(..., 10) zb[] with fr_quicksortclassic_int_i_ w[]...\n");
+    for (int i = 0; i < n; ++i)
+        if (zb[indxzb[i]] != w[indx[i]])
+            printf("mismatch: indxzb[%d] = %d, zb[indxzb[%d]] = %d    indx[%d]=%d w[indx[%d]] = %d\n",
+                    i, indxzb[i], i, zb[indxzb[i]], i, indx[i], i, w[indx[i]]);
+
+
+
+
     return 0;
     /*
     printf("after quicksort: x[] and indx[]\n");
