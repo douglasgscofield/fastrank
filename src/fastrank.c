@@ -72,39 +72,8 @@ void R_init_fastrank(DllInfo *info) {
 #define QUICKSORT_INSERTION_CUTOFF 20
 #define QUICKSORT3WAY_INSERTION_CUTOFF 20
 
-#define LESSER(__A, __B)  (__A < __B)
-#define EQUAL(__A, __B) (__A > __B)
-#define CPLX_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
-#define CPLX_EQUAL(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
-
-#define SWAP(__T, __A, __B) {__T t = __A; __A = __B; __B = t; }
-
-#undef __TYPE
-#undef __LESSER
-
-#define FR_quicksort_body(__TYPE, __LESSER) \
-    MY_SIZE_T i; /* used as param outside of body */ \
-    { \
-    __TYPE pvt; \
-    MY_SIZE_T j, it; \
-    if (n <= QUICKSORT_INSERTION_CUTOFF) { \
-        for (i = 1; i < n; ++i) { \
-            it = indx[i]; \
-            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) { \
-                indx[j] = indx[j - 1]; \
-            } \
-            indx[j] = it; \
-        } \
-        return; \
-    } \
-    pvt = a[indx[n / 2]]; \
-    for (i = 0, j = n - 1; ; i++, j--) { \
-        while (__LESSER(a[indx[i]], pvt)) i++; \
-        while (__LESSER(pvt, a[indx[j]])) j--; \
-        if (i >= j) break; \
-        SWAP(MY_SIZE_T, indx[i], indx[j]); \
-    } \
-    }
+//#define CPLX_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
+//#define CPLX_EQUAL(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
 
 
 static void
@@ -113,10 +82,12 @@ fr_quicksort3way_integer_i_(const int *     a,
                             const MY_SIZE_T n,
                             const MY_SIZE_T crit_size) {
 
-#undef __EQUAL
-#undef __LESSER
-#define __EQUAL(__A, __B) (__A == __B)
-#define __LESSER(__A, __B) (__A < __B)
+#undef EQUAL
+#undef LESSER
+#undef SWAP
+#define EQUAL(__A, __B) (__A == __B)
+#define LESSER(__A, __B) (__A < __B)
+#define SWAP(__T, __A, __B) {__T t = __A; __A = __B; __B = t; }
     MY_SIZE_T i, j, p, q, k;
 
     //if (n <= 1) return; 
@@ -124,7 +95,7 @@ fr_quicksort3way_integer_i_(const int *     a,
     if (n <= crit_size) {
         for (i = 1; i < n; ++i) {
             MY_SIZE_T it = indx[i];
-            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) {
+            for (j = i; j > 0 && LESSER(a[it], a[indx[j - 1]]); --j) {
                 indx[j] = indx[j - 1];
             }
             indx[j] = it;
@@ -134,29 +105,29 @@ fr_quicksort3way_integer_i_(const int *     a,
 
     int pvt = a[indx[n - 1]];
 
-    for (i = 0; __LESSER(a[indx[i]], pvt); ++i);
-    for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j);
+    for (i = 0; LESSER(a[indx[i]], pvt); ++i);
+    for (j = n - 2; LESSER(pvt, a[indx[j]]) && j > 0; --j);
     p = 0;
     q = n - 1;
     if (i < j) {
         SWAP(MY_SIZE_T, indx[i], indx[j]);
-        if (__EQUAL(a[indx[i]], pvt))
+        if (EQUAL(a[indx[i]], pvt))
             SWAP(int, indx[p], indx[i]);
-        if (__EQUAL(a[indx[j]], pvt)) {
+        if (EQUAL(a[indx[j]], pvt)) {
             q--;
             SWAP(MY_SIZE_T, indx[q], indx[j]);
         }
         for (;;) {
-            while (__LESSER(a[indx[++i]], pvt)) ;  
-            while (__LESSER(pvt, a[indx[--j]]))
+            while (++i, LESSER(a[indx[i]], pvt)) ;  
+            while (--j, LESSER(pvt, a[indx[j]]))
                 if (j == 0) break; 
             if (i >= j) break;
             SWAP(MY_SIZE_T, indx[i], indx[j]);
-            if (__EQUAL(a[indx[i]], pvt)) { 
+            if (EQUAL(a[indx[i]], pvt)) { 
                 if (p) p++; 
                 SWAP(MY_SIZE_T, indx[p], indx[i]);
             } 
-            if (__EQUAL(a[indx[j]], pvt)) {
+            if (EQUAL(a[indx[j]], pvt)) {
                 q--;
                 SWAP(MY_SIZE_T, indx[q], indx[j]);
             }
@@ -174,16 +145,22 @@ fr_quicksort3way_integer_i_(const int *     a,
     //for (int t = 0; t < n; ++t) printf("[%2d] %2d  ", t, a[t]);
     //printf("\n");
     //
-
     fr_quicksort3way_integer_i_(a, indx,     j + 1, crit_size);
     fr_quicksort3way_integer_i_(a, indx + i, n - i, crit_size);
 }
 
 
+#undef __TYPE
+#undef __LESSER
+#undef __EQUAL
+#undef __CRIT_SIZE
+#undef SWAP
+#define SWAP(__T, __A, __B) { __T t = __A; __A = __B; __B = t; }
+
 #define FR_quicksort3way_body(__TYPE, __LESSER, __EQUAL, __CRIT_SIZE) \
     MY_SIZE_T i, j, p, q, k; \
     { \
-    if (n <= __CRIT_SIZE) { \
+    if (n <= crit_size) { \
         for (i = 1; i < n; ++i) { \
             MY_SIZE_T it = indx[i]; \
             for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) { \
@@ -193,26 +170,25 @@ fr_quicksort3way_integer_i_(const int *     a,
         } \
         return; \
     } \
-    \
     __TYPE pvt = a[indx[n - 1]]; \
-    \
     for (i = 0; __LESSER(a[indx[i]], pvt); ++i); \
     for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j); \
     p = 0; \
     q = n - 1; \
     if (i < j) { \
         SWAP(MY_SIZE_T, indx[i], indx[j]); \
-        if (__EQUAL(a[indx[i]], pvt)) { \
+        if (__EQUAL(a[indx[i]], pvt)) {  \
             SWAP(MY_SIZE_T, indx[p], indx[i]); \
-        } \
+        }  \
         if (__EQUAL(a[indx[j]], pvt)) { \
             q--; \
             SWAP(MY_SIZE_T, indx[q], indx[j]); \
         } \
         for (;;) { \
-            while (__LESSER(a[indx[++i]], pvt)) ;   \
-            while (__LESSER(pvt, a[indx[--j]])) \
+            while (++i, __LESSER(a[indx[i]], pvt)) ;   \
+            while (--j, __LESSER(pvt, a[indx[j]])) {   \
                 if (j == 0) break;  \
+            } \
             if (i >= j) break; \
             SWAP(MY_SIZE_T, indx[i], indx[j]); \
             if (__EQUAL(a[indx[i]], pvt)) {  \
@@ -228,18 +204,19 @@ fr_quicksort3way_integer_i_(const int *     a,
     SWAP(MY_SIZE_T, indx[i], indx[n - 1]);  \
     j = i - 1; \
     i++; \
-    for (k = 0; k < p; k++, j--) \
+    for (k = 0; k < p; k++, j--) { \
         SWAP(MY_SIZE_T, indx[k], indx[j]);  \
-    for (k = n - 2; k > q; k--, i++) \
+    } \
+    for (k = n - 2; k > q; k--, i++) { \
         SWAP(MY_SIZE_T, indx[i], indx[k]); \
+    } \
     }
 
 
-#undef EQUAL
 #undef LESSER
-#define EQUAL(__A, __B) (__A == __B)
+#undef EQUAL
 #define LESSER(__A, __B) (__A < __B)
-
+#define EQUAL(__A, __B) (__A == __B)
 static void
 fr_quicksort3way_integer2_i_(const int *     a, 
                             MY_SIZE_T       indx[],
@@ -265,6 +242,33 @@ fr_quicksort3way_double_i_(const double *  a,
     fr_quicksort3way_double_i_(a, indx + i, n - i, crit_size);
 }
 
+
+
+#undef __TYPE
+#undef __LESSER
+#define FR_quicksort_body(__TYPE, __LESSER) \
+    MY_SIZE_T i; /* used as param outside of body */ \
+    { \
+    __TYPE pvt; \
+    MY_SIZE_T j, it; \
+    if (n <= QUICKSORT_INSERTION_CUTOFF) { \
+        for (i = 1; i < n; ++i) { \
+            it = indx[i]; \
+            for (j = i; j > 0 && __LESSER(a[it], a[indx[j - 1]]); --j) { \
+                indx[j] = indx[j - 1]; \
+            } \
+            indx[j] = it; \
+        } \
+        return; \
+    } \
+    pvt = a[indx[n / 2]]; \
+    for (i = 0, j = n - 1; ; i++, j--) { \
+        while (__LESSER(a[indx[i]], pvt)) i++; \
+        while (__LESSER(pvt, a[indx[j]])) j--; \
+        if (i >= j) break; \
+        SWAP(MY_SIZE_T, indx[i], indx[j]); \
+    } \
+    }
 
 
 static void

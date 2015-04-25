@@ -36,6 +36,7 @@ int* vrandi(const int low, const int high, const int n);
 
 #define FR_quicksort3way_body(__TYPE, __LESSER, __EQUAL, __CRIT_SIZE) \
     MY_SIZE_T i, j, p, q, k; \
+    { \
     if (n <= crit_size) { \
         for (i = 1; i < n; ++i) { \
             MY_SIZE_T it = indx[i]; \
@@ -46,7 +47,7 @@ int* vrandi(const int low, const int high, const int n);
         } \
         return; \
     } \
-    int pvt = a[indx[n - 1]]; \
+    __TYPE pvt = a[indx[n - 1]]; \
     for (i = 0; __LESSER(a[indx[i]], pvt); ++i); \
     for (j = n - 2; __LESSER(pvt, a[indx[j]]) && j > 0; --j); \
     p = 0; \
@@ -61,8 +62,8 @@ int* vrandi(const int low, const int high, const int n);
             SWAP(MY_SIZE_T, indx[q], indx[j]); \
         } \
         for (;;) { \
-            while (__LESSER(a[indx[++i]], pvt)) ;   \
-            while (__LESSER(pvt, a[indx[--j]])) {   \
+            while (++i, __LESSER(a[indx[i]], pvt)) ;   \
+            while (--j, __LESSER(pvt, a[indx[j]])) {   \
                 if (j == 0) break;  \
             } \
             if (i >= j) break; \
@@ -85,6 +86,7 @@ int* vrandi(const int low, const int high, const int n);
     } \
     for (k = n - 2; k > q; k--, i++) { \
         SWAP(MY_SIZE_T, indx[i], indx[k]); \
+    } \
     }
 
 static void
@@ -130,8 +132,8 @@ quicksort3way_i_(const int *     a,
             SWAP(MY_SIZE_T, indx[q], indx[j]);
         }
         for (;;) {
-            while (LESSER(a[indx[++i]], pvt)) ;  
-            while (LESSER(pvt, a[indx[--j]])) {  
+            while (++i, LESSER(a[indx[i]], pvt)) ;  
+            while (--j, LESSER(pvt, a[indx[j]])) {  
                 if (j == 0) break; 
             }
             if (i >= j) break;
@@ -188,8 +190,8 @@ quicksort3way(int a[], int n) {
             exch(int, a[q], a[j]);
         }
         for (;;) {
-            while (a[++i] < pvt) ;  
-            while (pvt < a[--j]) {  
+            while (++i, a[i] < pvt) ;  
+            while (--j, pvt < a[j]) {  
                 if (j == 0) break; 
             }
             if (i >= j) break;
@@ -232,8 +234,8 @@ quicksort3wayorig(int a[], int l, int r) {
     int v = a[r];
     if (r <= l) return; 
     for (;;) {
-        while (a[++i] < v) ;
-        while (v < a[--j]) if (j == l) break; 
+        while (++i, a[i] < v) ;
+        while (--j, v < a[j]) if (j == l) break; 
         if (i >= j) break;
         exch(int, a[i], a[j]);
         if (a[i] == v) { p++; exch(int, a[p], a[i]); } 
@@ -381,23 +383,36 @@ int main(int argc, char* argv[]) {
             printf("mismatch: indxza[%d] = %d, za[indxza[%d]] = %d    x[%d] = %d\n",
                     i, indxza[i], i, za[indxza[i]], i, x[i]);
 
-    fr_quicksort3way_integer_i_(zb, indxzb, n, 10);
-    printf("comparing fr_quicksort3way_integer_i_(..., 10) zb[] with quicksort3wayorig x[]...\n");
+    fr_quicksort3way_integer_i_(zb, indxzb, n, 20);
+    printf("comparing fr_quicksort3way_integer_i_(..., 20) zb[] with quicksort3wayorig x[]...\n");
     for (int i = 0; i < n; ++i)
         if (zb[indxzb[i]] != x[i])
             printf("mismatch: indxzb[%d] = %d, zb[indxzb[%d]] = %d    x[%d] = %d\n",
                     i, indxzb[i], i, zb[indxzb[i]], i, x[i]);
 
-    printf("comparing fr_quicksort3way_integer_i_(..., 10) zb[] with fr_quicksortclassic_int_i_ w[]...\n");
+    printf("comparing fr_quicksort3way_integer_i_(..., 20) zb[] with fr_quicksortclassic_int_i_ w[]...\n");
     for (int i = 0; i < n; ++i)
         if (zb[indxzb[i]] != w[indx[i]])
             printf("mismatch: indxzb[%d] = %d, zb[indxzb[%d]] = %d    indx[%d]=%d w[indx[%d]] = %d\n",
                     i, indxzb[i], i, zb[indxzb[i]], i, indx[i], i, w[indx[i]]);
 
-
-
+    const int lim = 40;
+    printf("za: ");
+    for (int i = 0; i < n; ++i) {
+        if (i > 0 && za[indxza[i - 1]] > za[indxza[i]])
+            printf(">>>> ");
+        if (i > 0 && i <= lim && za[indxza[i - 1]] == za[indxza[i]])
+            printf("= ");
+        if (i < lim)
+            printf("%d ", za[indxza[i]]);
+        else if (i == lim)
+            printf("...", za[indxza[i]]);
+    }
+    putchar('\n');
 
     return 0;
+
+
     /*
     printf("after quicksort: x[] and indx[]\n");
     for (int i = 0; i < n; ++i) printf("%d   ", x[i]); putchar('\n');
