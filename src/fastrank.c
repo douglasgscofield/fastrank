@@ -25,6 +25,11 @@ fr_quicksort_integer_i_(const int * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 static void 
 fr_quicksort_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
+static void
+fr_quicksort3way_integer2_i_(const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+
+static void
+fr_quicksort3way_double2_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
@@ -229,17 +234,16 @@ fr_quicksort3way_integer2_i_(const int *     a,
     fr_quicksort3way_integer2_i_(a, indx + i, n - i, crit_size);
 }
 
-
 static void
-fr_quicksort3way_double_i_(const double *  a, 
-                           MY_SIZE_T       indx[],
-                           const MY_SIZE_T n,
-                           const MY_SIZE_T crit_size) {
+fr_quicksort3way_double2_i_(const double *     a, 
+                            MY_SIZE_T       indx[],
+                            const MY_SIZE_T n,
+                            const MY_SIZE_T crit_size) {
 
-    FR_quicksort3way_body(double, LESSER, EQUAL, crit_size)
+    FR_quicksort3way_body(double, LESSER, EQUAL, crit_size);
 
-    fr_quicksort3way_double_i_(a, indx,     j + 1, crit_size);
-    fr_quicksort3way_double_i_(a, indx + i, n - i, crit_size);
+    fr_quicksort3way_double2_i_(a, indx,     j + 1, crit_size);
+    fr_quicksort3way_double2_i_(a, indx + i, n - i, crit_size);
 }
 
 
@@ -421,8 +425,8 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
     if (TYPEOF(s_x) == STRSXP)
         error("'character' values not allowed");
     int sort_method = INTEGER(s_sort)[0];
-    if (sort_method < 1 || sort_method > 7)
-        error("'sort.method' must be between 1 and 4");
+    //if (sort_method < 1 || sort_method > 7)
+    //    error("'sort.method' must be between 1 and 4");
 
     MY_SIZE_T n = MY_LENGTH(s_x);
     if (DEBUG) Rprintf("length of s_x = %d\n", n);
@@ -510,12 +514,28 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
             fr_quicksort3way_integer2_i_(INTEGER(s_x), indx, n, 20);
             break;
         default:
-            error("unknown sort_method");
+            error("unknown sort_method for INTSXP and LGLSXP");
             break;
         }
         break;
     case REALSXP:
-        fr_quicksort_double_i_(REAL(s_x), indx, n);
+        switch(sort_method) {
+        case 1:
+            fr_quicksort_double_i_(REAL(s_x), indx, n);
+            break;
+        case 5:
+            fr_quicksort3way_double2_i_(REAL(s_x), indx, n, 1);
+            break;
+        case 6:
+            fr_quicksort3way_double2_i_(REAL(s_x), indx, n, 10);
+            break;
+        case 7:
+            fr_quicksort3way_double2_i_(REAL(s_x), indx, n, 20);
+            break;
+        default:
+            error("unknown sort_method for REALSXP");
+            break;
+        }
         break;
     default:
         error("Unsupported type for 'x'");
@@ -684,9 +704,9 @@ SEXP fastrank_average_(SEXP s_x) {
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE double
 #define TCONV REAL
-        fr_quicksort3way_double_i_(TCONV(s_x), indx, n, 1);
+        fr_quicksort3way_double2_i_(TCONV(s_x), indx, n, 1);
         //fr_quicksort_double_i_(TCONV(s_x), indx, n);
-        //fr_quicksort3way_double_i_(TCONV(s_x), indx, n, 
+        //fr_quicksort3way_double2_i_(TCONV(s_x), indx, n, 
         //                           QUICKSORT_INSERTION_CUTOFF);
         FR_rank(FR_ties_average, TYPE, TCONV, double, REALSXP, REAL)
         break;
