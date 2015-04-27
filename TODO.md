@@ -1,6 +1,8 @@
 TODO
 ----
 
+* Plot of benchmarking results, x = vector size, y = vector repetitiveness, z = quicksort - quicksort3way
+* Perhaps I want to provide quicksort and quicksort3way as options?  I need to provide guidance
 * New "front page" benchmarking results
 * Could I handle `character` and `NA`-containing data by switching to `R_orderVector` for these data types?
 * Use a stable sort for `"first"`... actually I might be able to always use a stable sort, since I have the index vector already I only exchange equivalent values if their index values are inverted.

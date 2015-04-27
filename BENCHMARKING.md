@@ -1212,3 +1212,64 @@ but there are a few more general points to explore.
 
 * What does GC Torture mean when it comes to benchmarking?
 
+
+Interestingly, seems like cutoff of 20 works best for classic quicksort, while cutoff of
+10 works best for quicksort3way, but it also depends on the degree of duplication in the
+data.
+
+
+```R
+> y1
+ [1]  2  9  8  1  9  9  6  7  7  5  2  9  8  6  9  5  7  2  2 10  1  4 10  2  1
+> z<- y1; r <- microbenchmark(rank(z), rank_internal(z), .Internal(rank(z, length(z), "average")), fastrank(z), fastrank(z, sort=2L), fastrank(z, sort=3L), fastrank(z, sort=4L), fastrank(z, sort=5L), fastrank(z, sort=6L), fastrank(z, sort=7L), fastrank_average(z), fastrank_average2(z), times=100000)
+> r
+Unit: nanoseconds
+                                     expr   min    lq      mean median    uq      max neval
+                                  rank(z) 29670 31936 36092.596  32545 33293 12076563 1e+05
+                         rank_internal(z)   984  1383  1780.162   1521  1702  7098927 1e+05
+ .Internal(rank(z, length(z), "average"))   713   988  1231.806   1081  1208  6569231 1e+05
+                              fastrank(z)  1515  1741  2403.945   1893  2110  6958177 1e+05
+                   fastrank(z, sort = 2L)  1685  1939  2347.307   2107  2348  6932322 1e+05
+                   fastrank(z, sort = 3L)  1635  1865  2687.191   2035  2276 12618105 1e+05
+                   fastrank(z, sort = 4L)  1632  1865  2526.402   2033  2270  6912527 1e+05
+                   fastrank(z, sort = 5L)  1687  1958  2492.983   2127  2368  6854917 1e+05
+                   fastrank(z, sort = 6L)  1633  1878  2214.693   2046  2288   132859 1e+05
+                   fastrank(z, sort = 7L)  1632  1876  3027.883   2045  2285 52929712 1e+05
+                      fastrank_average(z)  1195  1574  1870.790   1731  1924   131955 1e+05
+                     fastrank_average2(z)  1390  1663  2155.116   1795  1983  6981283 1e+05
+> yy1 <- sample(50,100,TRUE)
+> z<- yy1; r <- microbenchmark(rank(z), rank_internal(z), .Internal(rank(z, length(z), "average")), fastrank(z), fastrank(z, sort=2L), fastrank(z, sort=3L), fastrank(z, sort=4L), fastrank(z, sort=5L), fastrank(z, sort=6L), fastrank(z, sort=7L), fastrank_average(z), fastrank_average2(z), times=100000)
+> r
+Unit: microseconds
+                                     expr    min     lq      mean median      uq       max neval
+                                  rank(z) 32.640 35.429 44.418508 36.382 38.3200 61166.627 1e+05
+                         rank_internal(z)  2.614  3.086  3.846797  3.240  3.4420 12393.763 1e+05
+ .Internal(rank(z, length(z), "average"))  2.285  2.653  3.004675  2.774  2.9080   132.739 1e+05
+                              fastrank(z)  2.205  2.549  3.627276  2.748  3.1490 12500.397 1e+05
+                   fastrank(z, sort = 2L)  2.587  2.946  3.811927  3.162  3.5980 12122.379 1e+05
+                   fastrank(z, sort = 3L)  2.388  2.730  3.710878  2.947  3.3825 12697.869 1e+05
+                   fastrank(z, sort = 4L)  2.406  2.761  3.624697  2.978  3.4240 12285.872 1e+05
+                   fastrank(z, sort = 5L)  2.612  3.031  3.923399  3.269  3.7700 13138.629 1e+05
+                   fastrank(z, sort = 6L)  2.407  2.762  3.888555  2.980  3.4180 14600.206 1e+05
+                   fastrank(z, sort = 7L)  2.409  2.775  4.015745  2.992  3.4310 13649.356 1e+05
+                      fastrank_average(z)  2.079  2.567  3.134582  2.754  3.1080   151.735 1e+05
+                     fastrank_average2(z)  2.287  2.644  3.340041  2.811  3.1580 12972.253 1e+05
+> yyy1 <- sample(5000,10000,TRUE)
+> z<- yyy1; r <- microbenchmark(rank(z), rank_internal(z), .Internal(rank(z, length(z), "average")), fastrank(z), fastrank(z, sort=2L), fastrank(z, sort=3L), fastrank(z, sort=4L), fastrank(z, sort=5L), fastrank(z, sort=6L), fastrank(z, sort=7L), fastrank_average(z), fastrank_average2(z), times=1000)
+> r
+Unit: microseconds
+                                     expr      min        lq      mean    median        uq       max neval
+                                  rank(z) 1138.450 1165.6270 1341.6297 1247.6985 1282.3360 27702.046  1000
+                         rank_internal(z) 1005.984 1020.9255 1050.0786 1048.4735 1058.0280  1790.077  1000
+ .Internal(rank(z, length(z), "average")) 1009.546 1019.4075 1048.4419 1045.5005 1054.9395  1710.426  1000
+                              fastrank(z)  547.075  560.9345  587.4228  582.0710  603.4905   932.870  1000
+                   fastrank(z, sort = 2L)  677.399  698.1485  728.3665  725.9905  743.1560  1133.588  1000
+                   fastrank(z, sort = 3L)  615.539  634.3010  689.1122  665.2635  677.6385 24603.861  1000
+                   fastrank(z, sort = 4L)  578.504  596.1775  627.2847  629.0865  638.8520  1063.478  1000
+                   fastrank(z, sort = 5L)  676.158  697.5605  728.3857  727.5605  741.9375  1112.224  1000
+                   fastrank(z, sort = 6L)  613.709  632.1985  709.6463  656.4920  674.7530 25998.062  1000
+                   fastrank(z, sort = 7L)  579.052  594.7405  650.4218  624.8115  637.8745 26263.922  1000
+                      fastrank_average(z)  678.428  694.4020  723.8829  722.0790  738.0580  1121.306  1000
+                     fastrank_average2(z)  672.479  694.0595  748.5187  719.3270  736.4400 26358.478  1000
+
+```
