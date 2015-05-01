@@ -62,10 +62,13 @@ plot.benchmark <- function(b, compress = 0.5,
                            max.label = attr(b, "sort2"),
                            ...)
 {
-    png(file = paste0("diff_", min.label, "_", max.label, ".png"), width = 800, height = 800)
+    png(file = paste0("diff_benchmark_", min.label, "_", max.label,
+                      "_compress", compress, ".png"),
+        width = 800, height = 800)
     opa <- par(mfrow = c(1,1), las = 2, mar = c(4, 4, 1, 1), mgp = c(3, 0.4, 0), tcl = -0.3)
     b$length = ordered(b$length)
-    main <- paste("sort", min.label, max.label, " diff", paste(collapse = " ", (signif(range(b$diff), 3))))
+    main <- paste("sort", min.label, max.label, " diff",
+                  paste(collapse = " ", (signif(range(b$diff), 3))))
     if (! is.null(compress)) {
         b$diff <- ifelse(b$diff > compress, compress, b$diff)
         b$diff <- ifelse(b$diff < -compress, -compress, b$diff)
