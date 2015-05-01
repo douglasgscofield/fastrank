@@ -22,24 +22,28 @@ do.benchmark <- function(sort1 = 4L, sort2 = 7L, VL = vector.length, SF = sample
     bmark <- data.frame()
     for (il in seq_along(VL)) {
         for (ir in seq_along(SF)) {
-            a.diff <- c()
+            a.1 <- a.2 <- c()
             a.dupl <- c()
             for (i in seq(IT)) {
                 cat("sort1 =", sort1, " sort2 =", sort2, " VL =", VL[il], " SF =", SF[ir], " i =", i, "...\n")
                 x <- sample(round(VL[il] * SF[ir]), VL[il], ifelse(SF[ir] == 10, FALSE, TRUE))
+                storage.mode(x) <- "integer"
                 a.dupl <- c(a.dupl, sum(duplicated(sort(x))) / VL[il])
                 res <- microbenchmark(fastrank(x, sort = sort1),
                                       fastrank(x, sort = sort2),
                                       times = MT[il])
                 res <- summary(res)
-                a.diff <- c(a.diff, res$median[1] - res$median[2])
+                a.1 <- c(a.1, res$median[1])
+                a.2 <- c(a.2, res$median[2])
             }
             bmark <- rbind(bmark,
                            data.frame(length = VL[il],
                                       repet = SF[ir],
                                       iter = iterations,
                                       dupl = mean(a.dupl),
-                                      diff = mean(a.diff)))
+                                      diff = mean(a.1 - a.2),
+                                      time.1 = mean(a.1),
+                                      time.2 = mean(a.2)))
         }
     }
     attr(bmark, "sort1") <- sort1
@@ -61,7 +65,7 @@ plot.benchmark <- function(b, compress = 0.5,
     png(file = paste0("diff_", min.label, "_", max.label, ".png"), width = 800, height = 800)
     opa <- par(mfrow = c(1,1), las = 2, mar = c(4, 4, 1, 1), mgp = c(3, 0.4, 0), tcl = -0.3)
     b$length = ordered(b$length)
-    main <- paste("orig range", paste(collapse = " ", (signif(range(b$diff), 3))))
+    main <- paste("sort", min.label, max.label, " diff", paste(collapse = " ", (signif(range(b$diff), 3))))
     if (! is.null(compress)) {
         b$diff <- ifelse(b$diff > compress, compress, b$diff)
         b$diff <- ifelse(b$diff < -compress, -compress, b$diff)
