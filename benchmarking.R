@@ -16,6 +16,38 @@ sample.fraction = c(10, 7, 5, 4, 3, 2, 1.7, 1.5, 1.3, 1.2,
 
 iterations <- 10
 
+run.benchmarks <- function() {
+    b23 <- do.benchmark(2L, 3L)
+    b24 <- do.benchmark(2L, 4L)
+    b34 <- do.benchmark(3L, 4L)
+    b56 <- do.benchmark(5L, 6L)
+    b57 <- do.benchmark(5L, 7L)
+    b67 <- do.benchmark(6L, 7L)
+    b25 <- do.benchmark(2L, 5L)
+    b36 <- do.benchmark(3L, 6L)
+    b47 <- do.benchmark(4L, 7L)
+    for (comp in c(9.5, 1, 2)) {
+        plot.benchmark(b23, compress = comp)
+        plot.benchmark(b24, compress = comp)
+        plot.benchmark(b34, compress = comp)
+        plot.benchmark(b56, compress = comp)
+        plot.benchmark(b67, compress = comp)
+        plot.benchmark(b57, compress = comp)
+        plot.benchmark(b25, compress = comp)
+        plot.benchmark(b36, compress = comp)
+        plot.benchmark(b47, compress = comp)
+    }
+    b23 <<- b23
+    b24 <<- b24
+    b34 <<- b34
+    b56 <<- b56
+    b57 <<- b57
+    b67 <<- b67
+    b25 <<- b25
+    b36 <<- b36
+    b47 <<- b47
+}
+
 do.benchmark <- function(sort1 = 4L, sort2 = 7L, VL = vector.length, SF = sample.fraction,
                          MT = micro.times, IT = iterations)
 {
@@ -62,7 +94,8 @@ plot.benchmark <- function(b, compress = 0.5,
                            max.label = attr(b, "sort2"),
                            ...)
 {
-    png(file = paste0("diff_benchmark_", min.label, "_", max.label,
+    machine <- strsplit(system2("uname","-n", stdout=TRUE), '.', fixed=TRUE)[[1]][1]
+    png(file = paste0("diff_", machine, "_benchmark_", min.label, "_", max.label,
                       "_compress", compress, ".png"),
         width = 800, height = 800)
     opa <- par(mfrow = c(1,1), las = 2, mar = c(4, 4, 1, 1), mgp = c(3, 0.4, 0), tcl = -0.3)
