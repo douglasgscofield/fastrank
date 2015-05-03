@@ -26,7 +26,7 @@ run.benchmarks <- function() {
     b25 <- do.benchmark(2L, 5L)
     b36 <- do.benchmark(3L, 6L)
     b47 <- do.benchmark(4L, 7L)
-    for (comp in c(9.5, 1, 2)) {
+    for (comp in c(0.5, 1, 2)) {
         plot.benchmark(b23, compress = comp)
         plot.benchmark(b24, compress = comp)
         plot.benchmark(b34, compress = comp)
