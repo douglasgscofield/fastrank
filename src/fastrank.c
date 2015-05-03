@@ -8,6 +8,11 @@
 /* include inline debug statements? */
 #define DEBUG 0
 
+/* at what length does quicksort switch to insertion sort? */
+#define QUICKSORT_INSERTION_CUTOFF       20
+#define QUICKSORT3WAY_INSERTION_CUTOFF   20
+
+
 #ifdef LONG_VECTOR_SUPPORT
 #  define MY_SIZE_T R_xlen_t
 #  define MY_LENGTH xlength
@@ -25,11 +30,17 @@ fr_quicksort_integer_i_(const int * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 static void 
 fr_quicksort_double_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n);
 
+static void 
+fr_quicksort_complex_i_(const Rcomplex * a, MY_SIZE_T indx[], const MY_SIZE_T n);
+
 static void
 fr_quicksort3way_integer2_i_(const int * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 
 static void
 fr_quicksort3way_double2_i_(const double * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
+
+static void
+fr_quicksort3way_complex2_i_(const Rcomplex * a, MY_SIZE_T indx[], const MY_SIZE_T n, const MY_SIZE_T crit_size);
 
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort);
 SEXP fastrank_num_avg_(SEXP s_x);
@@ -74,11 +85,8 @@ void R_init_fastrank(DllInfo *info) {
  * best way to go.
  */
 
-#define QUICKSORT_INSERTION_CUTOFF 20
-#define QUICKSORT3WAY_INSERTION_CUTOFF 20
-
-//#define CPLX_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
-//#define CPLX_EQUAL(__A, __B) (__A.r > __B.r || (__A.r == __B.r && __A.i > __B.i))
+#define __CPLX_LESSER(__A, __B)  (__A.r < __B.r || (__A.r == __B.r && __A.i < __B.i))
+#define __CPLX_EQUAL(__A, __B)   (__A.r == __B.r && __A.i == __B.i)
 
 
 static void
@@ -234,6 +242,10 @@ fr_quicksort3way_integer2_i_(const int *     a,
     fr_quicksort3way_integer2_i_(a, indx + i, n - i, crit_size);
 }
 
+#undef LESSER
+#undef EQUAL
+#define LESSER(__A, __B) (__A < __B)
+#define EQUAL(__A, __B) (__A == __B)
 static void
 fr_quicksort3way_double2_i_(const double *     a, 
                             MY_SIZE_T       indx[],
@@ -245,6 +257,23 @@ fr_quicksort3way_double2_i_(const double *     a,
     fr_quicksort3way_double2_i_(a, indx,     j + 1, crit_size);
     fr_quicksort3way_double2_i_(a, indx + i, n - i, crit_size);
 }
+
+#undef LESSER
+#undef EQUAL
+#define LESSER(__A, __B) __CPLX_LESSER(__A, __B)
+#define EQUAL(__A, __B)  __CPLX_EQUAL(__A, __B)
+static void
+fr_quicksort3way_complex2_i_(const Rcomplex *     a, 
+                             MY_SIZE_T       indx[],
+                             const MY_SIZE_T n,
+                             const MY_SIZE_T crit_size) {
+
+    FR_quicksort3way_body(Rcomplex, LESSER, EQUAL, crit_size);
+
+    fr_quicksort3way_complex2_i_(a, indx,     j + 1, crit_size);
+    fr_quicksort3way_complex2_i_(a, indx + i, n - i, crit_size);
+}
+
 
 
 
@@ -275,6 +304,10 @@ fr_quicksort3way_double2_i_(const double *     a,
     }
 
 
+#undef LESSER
+#undef EQUAL
+#define LESSER(__A, __B) (__A < __B)
+#define EQUAL(__A, __B) (__A == __B)
 static void
 fr_quicksort_integer_i_(const int * a, 
                         MY_SIZE_T indx[], 
@@ -288,6 +321,10 @@ fr_quicksort_integer_i_(const int * a,
 
 
 
+#undef LESSER
+#undef EQUAL
+#define LESSER(__A, __B) (__A < __B)
+#define EQUAL(__A, __B) (__A == __B)
 static void
 fr_quicksort_double_i_ (const double * a, 
                         MY_SIZE_T indx[], 
@@ -301,6 +338,26 @@ fr_quicksort_double_i_ (const double * a,
 
 
 
+#undef LESSER
+#undef EQUAL
+#define LESSER(__A, __B) __CPLX_LESSER(__A, __B)
+#define EQUAL(__A, __B)  __CPLX_EQUAL(__A, __B)
+static void
+fr_quicksort_complex_i_ (const Rcomplex * a, 
+                        MY_SIZE_T indx[], 
+                        const MY_SIZE_T n) {
+
+    FR_quicksort_body(Rcomplex, LESSER)
+
+    fr_quicksort_complex_i_(a, indx,     i    );
+    fr_quicksort_complex_i_(a, indx + i, n - i);
+}
+
+
+
+
+
+#undef LESSER      /* comparison for less-than for each vector type */
 #undef EQUAL       /* comparison for equality for each vector type */
 #undef TYPE        /* general type of vector passed in */
 #undef TCONV       /* general R API conversion for type of vector passed in */
@@ -420,10 +477,13 @@ fr_quicksort_double_i_ (const double * a,
 /* General ranking (no characters), called from fastrank() wrapper */
 SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
 
-    if (TYPEOF(s_x) != REALSXP && TYPEOF(s_x) != INTSXP && TYPEOF(s_x) != LGLSXP)
-        error("x must be numeric or integer or logical");
-    if (TYPEOF(s_x) == STRSXP)
+    if (TYPEOF(s_x) == CPLXSXP)
+        Rprintf("'complex' value support is experimental");
+    else if (TYPEOF(s_x) == STRSXP)
         error("'character' values not allowed");
+    else if (TYPEOF(s_x) != REALSXP && TYPEOF(s_x) != INTSXP && TYPEOF(s_x) != LGLSXP)
+        error("type of 'x' not supported");
+
     int sort_method = INTEGER(s_sort)[0];
     //if (sort_method < 1 || sort_method > 7)
     //    error("'sort.method' must be between 1 and 4");
@@ -534,6 +594,25 @@ SEXP fastrank_(SEXP s_x, SEXP s_tm, SEXP s_sort) {
             break;
         default:
             error("unknown sort_method for REALSXP");
+            break;
+        }
+        break;
+    case CPLXSXP:
+        switch(sort_method) {
+        case 1:
+            fr_quicksort_complex_i_(COMPLEX(s_x), indx, n);
+            break;
+        case 5:
+            fr_quicksort3way_complex2_i_(COMPLEX(s_x), indx, n, 1);
+            break;
+        case 6:
+            fr_quicksort3way_complex2_i_(COMPLEX(s_x), indx, n, 10);
+            break;
+        case 7:
+            fr_quicksort3way_complex2_i_(COMPLEX(s_x), indx, n, 20);
+            break;
+        default:
+            error("unknown sort_method for CPLXSXP");
             break;
         }
         break;
@@ -691,7 +770,8 @@ SEXP fastrank_average_(SEXP s_x) {
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE int
 #define TCONV INTEGER
-        fr_quicksort3way_integer_i_(TCONV(s_x), indx, n, 1);
+        fr_quicksort3way_integer2_i_(TCONV(s_x), indx, n,
+                                     QUICKSORT3WAY_INSERTION_CUTOFF);
         //fr_quicksort_integer_i_(TCONV(s_x), indx, n);
         //fr_quicksort3way_integer_i_(TCONV(s_x), indx, n, 
         //                            QUICKSORT_INSERTION_CUTOFF);
@@ -704,7 +784,8 @@ SEXP fastrank_average_(SEXP s_x) {
 #define EQUAL(_x, _y) (_x == _y)
 #define TYPE double
 #define TCONV REAL
-        fr_quicksort3way_double2_i_(TCONV(s_x), indx, n, 1);
+        fr_quicksort3way_double2_i_(TCONV(s_x), indx, n,
+                                    QUICKSORT3WAY_INSERTION_CUTOFF);
         //fr_quicksort_double_i_(TCONV(s_x), indx, n);
         //fr_quicksort3way_double2_i_(TCONV(s_x), indx, n, 
         //                           QUICKSORT_INSERTION_CUTOFF);
