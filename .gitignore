@@ -32,3 +32,6 @@ src/tst/test_shellsort
 src/tst/test_quicksort
 src/tst/sample
 *.dSYM
+
+# benchmark results
+diff*benchmark*.png
