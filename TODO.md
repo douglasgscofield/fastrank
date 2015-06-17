@@ -1,6 +1,10 @@
 TODO
 ----
 
+* Complete complexifying fastrank:
+* * check quicksort sort routine
+* * check quicksort3way sort routine
+* * check rank macros
 * Plot of benchmarking results, x = vector size, y = vector repetitiveness, z = quicksort - quicksort3way
 * Perhaps I want to provide quicksort and quicksort3way as options?  I need to provide guidance
 * New "front page" benchmarking results

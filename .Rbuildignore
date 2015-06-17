@@ -10,6 +10,8 @@
 ^NEWS.md$
 ^TODO.md$
 ^BENCHMARKING.md$
+^benchmarking.R$
+^benchmarking$
 ^src/tst$
 ^src/.*\.bak.*$
 ^.*\.dSYM$
