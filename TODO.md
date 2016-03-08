@@ -5,7 +5,6 @@ TODO
 * * check quicksort sort routine
 * * check quicksort3way sort routine
 * * check rank macros
-* Plot of benchmarking results, x = vector size, y = vector repetitiveness, z = quicksort - quicksort3way
 * Perhaps I want to provide quicksort and quicksort3way as options?  I need to provide guidance
 * New "front page" benchmarking results
 * Could I handle `character` and `NA`-containing data by switching to `R_orderVector` for these data types?
@@ -47,6 +46,7 @@ I don't know what sorts of things I might run into with submitting this to CRAN,
 Completed
 ---------
 
+* Plot of benchmarking results, x = vector size, y = vector repetitiveness, z = quicksort - quicksort3way
 * Learned that `.Internal` is implemented via a dispatch table compiled into the R executable, so there is no way we can beat the speed of its call interface
 * It is much faster to include `PACKAGE = "fastrank"` in the R wrapper
 * It is faster to byte-compile the R wrapper
